@@ -230,15 +230,6 @@ class LytroDevice(UsbMassStorage):
             .decode("ascii", errors="ignore")
             .strip()
         )
-
-        # return {
-        #     "vendor": vendor,
-        #     "product": product,
-        #     "revision": revision,
-        #     "serial": serial,
-        #     "firmware": firmware,
-        # }
-
         return CameraInfo(
             vendor=vendor,
             product=product,
