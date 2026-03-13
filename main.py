@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import asyncio
 from pathlib import Path
 import sys
@@ -11,17 +12,21 @@ from lib.lightfield_pipeline import process_directory
 async def main() -> int:
     if len(sys.argv) >= 3 and sys.argv[1] == "calibrate":
         input_dir = Path(sys.argv[2])
-        output_path = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
+        output_path = (
+            Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
+        )
         calibrate_directory(input_dir, output_path)
         print(f"Wrote calibration file: {output_path}")
         return 0
     if len(sys.argv) >= 3 and sys.argv[1] == "process":
         input_dir = Path(sys.argv[2])
-        calibration_path = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
+        calibration_path = (
+            Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
+        )
         outputs = process_directory(input_dir, calibration_path)
         print(f"Generated {len(outputs)} flat images")
         return 0
-
+    print("No command specified...")
     camera = LytroDevice.find()
     if camera is None:
         print("Lytro camera not found.")
@@ -30,7 +35,9 @@ async def main() -> int:
     pictures = []
     raw_list = b""
     try:
+        print("Camera found. Gathering information...")
         await camera.wait_ready()
+        print("Camera is ready. Fetching data...")
         info = await camera.get_camera_information()
         raw_list = await camera.get_picture_list_raw()
         pictures = await camera.get_picture_list()
@@ -83,13 +90,17 @@ async def main() -> int:
                 print(f"Thumbnail decode failed: {exc}")
             calibration_path = Path("calibration.json")
             if not calibration_path.exists():
-                print("Calibration file missing: calibration.json. Generating it now...")
+                print(
+                    "Calibration file missing: calibration.json. Generating it now..."
+                )
                 calib_dir = output_dir / "calibration"
                 calib_dir.mkdir(parents=True, exist_ok=True)
                 # Download calibration images from camera (C:\\T1CALIB\\MOD_0000..0061)
                 downloaded = 0
                 skipped = 0
-                for i in range(62):
+                for i in tqdm(
+                    range(62), desc="Downloading calibration images", unit="image"
+                ):
                     name = f"MOD_{i:04d}"
                     raw_path = f"C:\\T1CALIB\\{name}.RAW"
                     txt_path = f"C:\\T1CALIB\\{name}.TXT"
@@ -102,7 +113,9 @@ async def main() -> int:
                     except Exception as exc:
                         print(f"Skipping calibration image {name}: {exc}")
                         skipped += 1
-                print(f"Downloaded calibration images: {downloaded}, skipped: {skipped}")
+                print(
+                    f"Downloaded calibration images: {downloaded}, skipped: {skipped}"
+                )
                 calibrate_directory(calib_dir, calibration_path)
                 print(f"Wrote calibration file: {calibration_path}")
 
@@ -111,7 +124,9 @@ async def main() -> int:
                 sample.export_flat(calibration_path, flat_path)
                 print(f"Exported flat image: {flat_path}")
             else:
-                print("Calibration still missing after generation. Skipping flat export.")
+                print(
+                    "Calibration still missing after generation. Skipping flat export."
+                )
 
         return 0
     finally:

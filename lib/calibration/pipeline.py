@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from tqdm import tqdm
+
 from lib.lyli_metadata import Metadata
 from lib.raw_image import RawImage
 from lib.calibration_data import CalibrationData
@@ -17,12 +19,15 @@ def calibrate_directory(
     input_dir: str | Path,
     output_path: str | Path,
     use_fft_preprocessor: bool = True,
+    max_files: int | None = None,
 ) -> CalibrationData:
     directory = Path(input_dir)
     if not directory.exists():
         raise FileNotFoundError(directory)
 
     raw_files = sorted(p for p in directory.glob("*.RAW"))
+    if max_files is not None:
+        raw_files = raw_files[:max_files]
     if not raw_files:
         raise RuntimeError(f"No .RAW files found in {directory}")
 
@@ -31,7 +36,7 @@ def calibrate_directory(
     calibrator = Calibrator()
 
     grids_added = 0
-    for raw_path in raw_files:
+    for raw_path in tqdm(raw_files, desc="Calibrating", unit="file"):
         base = raw_path.with_suffix("")
         meta_path = base.with_suffix(".TXT")
         if not meta_path.exists():
