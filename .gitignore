@@ -216,3 +216,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 /lyli-master
+*.png
+*.RAW
+*.TXT

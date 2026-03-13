@@ -16,6 +16,10 @@ class CapturedPicture:
     raw_bytes: bytes
     thumbnail_bytes: bytes
     _thumbnail_bgr: np.ndarray | None = None
+    _thumbnail_gray8: np.ndarray | None = None
+
+    THUMB_WIDTH = 128
+    THUMB_HEIGHT = 128
 
     @classmethod
     async def create(
@@ -43,9 +47,27 @@ class CapturedPicture:
 
     def thumbnail_bgr(self) -> np.ndarray | None:
         if self._thumbnail_bgr is None and self.thumbnail_bytes:
-            arr = np.frombuffer(self.thumbnail_bytes, dtype=np.uint8)
-            self._thumbnail_bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            gray = self.thumbnail_gray8()
+            if gray is None:
+                return None
+            self._thumbnail_bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         return self._thumbnail_bgr
+
+    def thumbnail_gray8(self) -> np.ndarray | None:
+        if self._thumbnail_gray8 is not None:
+            return self._thumbnail_gray8
+        if not self.thumbnail_bytes:
+            return None
+        expected = self.THUMB_WIDTH * self.THUMB_HEIGHT * 2
+        if len(self.thumbnail_bytes) < expected:
+            raise RuntimeError(
+                f"Thumbnail data too small: {len(self.thumbnail_bytes)} bytes"
+            )
+        raw = np.frombuffer(self.thumbnail_bytes[:expected], dtype="<u2")
+        gray16 = raw.reshape((self.THUMB_HEIGHT, self.THUMB_WIDTH))
+        # Match Lyli: qRgb(tmpVal, tmpVal, tmpVal) keeps only low 8 bits.
+        self._thumbnail_gray8 = (gray16 & 0x00FF).astype(np.uint8)
+        return self._thumbnail_gray8
 
     def save_metadata(self, output_path: str | Path) -> Path:
         path = Path(output_path)
