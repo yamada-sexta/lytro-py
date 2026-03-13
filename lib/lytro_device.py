@@ -150,12 +150,14 @@ class LytroDevice(UsbMassStorage):
             captured_at = None
             time_raw = LytroDevice._decode_c_string(line[96:120])
             if time_raw:
-                try:
-                    captured_at = datetime.strptime(
-                        time_raw, "%Y-%m-%dT%H:%M:%SZ"
-                    ).replace(tzinfo=timezone.utc)
-                except ValueError:
-                    captured_at = None
+                for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ"):
+                    try:
+                        captured_at = datetime.strptime(time_raw, fmt).replace(
+                            tzinfo=timezone.utc
+                        )
+                        break
+                    except ValueError:
+                        continue
 
             path = LytroDevice._build_picture_path(dir_base, dir_id)
             basename = LytroDevice._build_picture_basename(file_base, file_id)

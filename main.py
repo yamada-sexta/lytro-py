@@ -10,18 +10,12 @@ async def main() -> int:
         return 1
 
     pictures = []
-    first_picture = None
-    first_thumb = None
+    raw_list = b""
     try:
         await camera.wait_ready()
         info = await camera.get_camera_information()
+        raw_list = await camera.get_picture_list_raw()
         pictures = await camera.get_picture_list()
-        first_picture = pictures[0] if pictures else None
-        first_thumb = (
-            await camera.get_file(first_picture.thumbnail_path)
-            if first_picture
-            else None
-        )
     finally:
         camera.close()
 
@@ -39,9 +33,28 @@ async def main() -> int:
     #     )
     #     print(f"First image: {first_picture.basename} ({captured})")
     #     print(f"Thumbnail bytes: {len(first_thumb) if first_thumb else 0}")
+    raw_time_map: dict[str, str] = {}
+    if raw_list and len(raw_list) >= 12:
+        line_len = int.from_bytes(raw_list[4:8], "little", signed=False)
+        entry_offset = int.from_bytes(raw_list[8:12], "little", signed=False)
+        pos = entry_offset * 8 + 12
+        while pos + line_len <= len(raw_list):
+            line = raw_list[pos : pos + line_len]
+            file_base = line[8:16].split(b"\x00", 1)[0].decode(
+                "ascii", errors="ignore"
+            )
+            file_id = int.from_bytes(line[20:24], "little", signed=False)
+            basename = f"{file_base}{file_id:04d}"
+            raw_time = line[96:120].split(b"\x00", 1)[0].decode(
+                "ascii", errors="ignore"
+            )
+            raw_time_map[basename] = raw_time
+            pos += line_len
+
     for pic in pictures:
         captured = pic.captured_at.isoformat() if pic.captured_at else "unknown"
         print(f"{pic.basename} (captured at {captured})")
+        print(f"  Raw time: {raw_time_map.get(pic.basename, 'missing')}")
         print(f"  SHA1: {pic.sha1_hex}")
         print(f"  Path: {pic.path}")
         print(f"  Thumbnail path: {pic.thumbnail_path}")
