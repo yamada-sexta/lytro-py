@@ -160,18 +160,15 @@ class LensDetector:
         mask_t = mask.T.copy()
 
         pointgrid = PointGrid()
-        for row in range(mask_t.shape[0]):
-            pixel = mask_t[row]
-            for col in range(mask_t.shape[1]):
-                if pixel[col] == Mask.OBJECT:
-                    centroid = _find_centroid(gray_t, mask_t, (col, row))
-                    centroid = _refine_centroid(gray_t, centroid)
-                    pointgrid.add_point(centroid)
-                    if (
-                        0 <= int(round(centroid[1])) < mask_t.shape[0]
-                        and 0 <= int(round(centroid[0])) < mask_t.shape[1]
-                    ):
-                        mask_t[int(round(centroid[1])), int(round(centroid[0]))] = 192
+        # Fast centroid detection using connected components (much faster than per-pixel flood fill).
+        binary = (mask_t == Mask.OBJECT).astype(np.uint8)
+        num_labels, _, stats, centroids = cv2.connectedComponentsWithStats(
+            binary, connectivity=8
+        )
+        for label in range(1, num_labels):
+            cx, cy = centroids[label]
+            centroid = _refine_centroid(gray_t, (float(cx), float(cy)))
+            pointgrid.add_point(centroid)
 
         pointgrid.finalize()
         return pointgrid
