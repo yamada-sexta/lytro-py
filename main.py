@@ -132,6 +132,9 @@ async def main() -> int:
                 flat_path = output_dir / f"{sample.entry.basename}-flat.png"
                 sample.export_flat(calibration_path, flat_path)
                 print(f"Exported flat image: {flat_path}")
+                color_thumb_path = output_dir / f"{sample.entry.basename}-thumb.png"
+                sample.save_color_thumbnail(calibration_path, color_thumb_path)
+                print(f"Exported color thumbnail image: {color_thumb_path}")
             else:
                 print(
                     "Calibration still missing after generation. Skipping flat export."

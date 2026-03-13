@@ -6,7 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from lib.lightfield_pipeline import export_flat_png, load_calibration
+from lib.lightfield_pipeline import export_flat_png, load_calibration, build_lightfield
 from lib.lytro_device import LytroDevice, PictureEntry
 
 
@@ -112,3 +112,18 @@ class CapturedPicture:
         return export_flat_png(
             self.raw_bytes, self.metadata_bytes, calibration, output_path
         )
+
+    def save_color_thumbnail(
+        self,
+        calibration_path: str | Path,
+        output_path: str | Path,
+        size: int = 128,
+    ) -> Path:
+        calibration = load_calibration(calibration_path)
+        lf = build_lightfield(self.raw_bytes, self.metadata_bytes, calibration)
+        bgr = cv2.cvtColor(lf.data, cv2.COLOR_RGB2BGR)
+        thumb = cv2.resize(bgr, (size, size), interpolation=cv2.INTER_AREA)
+        out_path = Path(output_path)
+        if not cv2.imwrite(str(out_path), thumb):
+            raise RuntimeError(f"Failed to write image to {out_path}")
+        return out_path
