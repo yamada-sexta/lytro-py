@@ -42,7 +42,7 @@ class UsbMassStorage:
         except NotImplementedError:
             return
 
-    def _find_endpoints(self):
+    def _find_endpoints(self) -> tuple[int, int]:
         cfg = self.dev.get_active_configuration()
         intf = cfg[(0, 0)]
         ep_out = usb.util.find_descriptor(
@@ -57,7 +57,7 @@ class UsbMassStorage:
         )
         if ep_out is None or ep_in is None:
             return DEFAULT_EP_OUT, DEFAULT_EP_IN
-        return ep_out.bEndpointAddress, ep_in.bEndpointAddress
+        return ep_out.bEndpointAddress, ep_in.bEndpointAddress  # type: ignore[attr-defined]
 
     def _next_tag(self) -> int:
         tag = self._tag
@@ -69,15 +69,18 @@ class UsbMassStorage:
     def _send_cbw(self, cdb: bytes, data_len: int, flags: int, lun: int) -> int:
         tag = self._next_tag()
         cdb_padded = cdb.ljust(16, b"\x00")
-        cbw = struct.pack(
-            "<I I I B B B",
-            CBW_SIGNATURE,
-            tag,
-            data_len,
-            flags,
-            lun,
-            len(cdb),
-        ) + cdb_padded
+        cbw = (
+            struct.pack(
+                "<I I I B B B",
+                CBW_SIGNATURE,
+                tag,
+                data_len,
+                flags,
+                lun,
+                len(cdb),
+            )
+            + cdb_padded
+        )
         self.dev.write(self.ep_out, cbw)
         return tag
 
@@ -87,9 +90,13 @@ class UsbMassStorage:
         if signature != CSW_SIGNATURE or tag != expected_tag:
             raise RuntimeError("Invalid CSW received from device")
         if status != 0:
-            raise RuntimeError(f"Command failed with status {status} (residue {residue})")
+            raise RuntimeError(
+                f"Command failed with status {status} (residue {residue})"
+            )
 
-    def command(self, cdb: bytes, data_in_len: int = 0, data_out: bytes | None = None) -> bytes:
+    def command(
+        self, cdb: bytes, data_in_len: int = 0, data_out: bytes | None = None
+    ) -> bytes:
         flags = 0x80 if data_in_len > 0 else 0x00
         if data_out is not None:
             data_len = len(data_out)
@@ -142,11 +149,29 @@ def scsi_inquiry(ms: UsbMassStorage) -> tuple[str, str, str]:
 
 
 def download_data(ms: UsbMassStorage) -> bytes:
-    ms.command(bytes([0xC6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]), data_in_len=65536)
+    ms.command(
+        bytes([0xC6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+        data_in_len=65536,
+    )
     result = bytearray()
     packet = 0
     while True:
-        cdb = bytes([0xC4, 0x00, 0x01, 0x00, 0x00, packet & 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+        cdb = bytes(
+            [
+                0xC4,
+                0x00,
+                0x01,
+                0x00,
+                0x00,
+                packet & 0xFF,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ]
+        )
         chunk = ms.command(cdb, data_in_len=65536)
         result.extend(chunk)
         if len(chunk) < 65536:
@@ -157,10 +182,22 @@ def download_data(ms: UsbMassStorage) -> bytes:
 
 def get_camera_information(ms: UsbMassStorage) -> dict:
     vendor, product, revision = scsi_inquiry(ms)
-    ms.command(bytes([0xC2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+    ms.command(
+        bytes([0xC2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    )
     info_response = download_data(ms)
-    serial = info_response[0x0100:].split(b"\x00", 1)[0].decode("ascii", errors="ignore").strip()
-    firmware = info_response[0x0200:].split(b"\x00", 1)[0].decode("ascii", errors="ignore").strip()
+    serial = (
+        info_response[0x0100:]
+        .split(b"\x00", 1)[0]
+        .decode("ascii", errors="ignore")
+        .strip()
+    )
+    firmware = (
+        info_response[0x0200:]
+        .split(b"\x00", 1)[0]
+        .decode("ascii", errors="ignore")
+        .strip()
+    )
     return {
         "vendor": vendor,
         "product": product,
@@ -174,6 +211,9 @@ def main() -> int:
     dev = usb.core.find(idVendor=LYTRO_VENDOR_ID, idProduct=LYTRO_PRODUCT_ID)
     if dev is None:
         print("Lytro camera not found.")
+        return 1
+    if not isinstance(dev, usb.core.Device):
+        print("Multiple Lytro cameras found. This is not supported.")
         return 1
 
     ms = UsbMassStorage(dev)
