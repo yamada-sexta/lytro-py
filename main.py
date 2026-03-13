@@ -1,11 +1,20 @@
 import asyncio
 from pathlib import Path
+import sys
 
 from lib.captured_picture import CapturedPicture
 from lib.lytro_device import LytroDevice
+from lib.calibration import calibrate_directory
 
 
 async def main() -> int:
+    if len(sys.argv) >= 3 and sys.argv[1] == "calibrate":
+        input_dir = Path(sys.argv[2])
+        output_path = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
+        calibrate_directory(input_dir, output_path)
+        print(f"Wrote calibration file: {output_path}")
+        return 0
+
     camera = LytroDevice.find()
     if camera is None:
         print("Lytro camera not found.")

@@ -91,3 +91,20 @@ class Metadata:
             zoom_step=int(lens["zoomStep"]),
             focus_step=int(lens["focusStep"]),
         )
+
+    def private_serial(self) -> str:
+        return str(
+            self.raw_json["master"]["picture"]["frameArray"][0]["frame"][
+                "privateMetadata"
+            ]["camera"]["serialNumber"]
+        )
+
+    def lens_meta(self) -> dict[str, float | int]:
+        lens = self.raw_json["master"]["picture"]["frameArray"][0]["frame"]["metadata"][
+            "devices"
+        ]["lens"]
+        return {
+            "zoom_step": int(lens["zoomStep"]),
+            "focus_step": int(lens["focusStep"]),
+            "focal_length": float(lens["focalLength"]),
+        }

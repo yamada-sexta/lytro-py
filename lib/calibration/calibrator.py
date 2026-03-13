@@ -7,13 +7,18 @@ from typing import Dict, List, Tuple
 import cv2
 import numpy as np
 
-from lib.calibration_data import CalibrationData, LensConfiguration, LensParameters, ArrayParameters
+from lib.calibration_data import (
+    CalibrationData,
+    LensConfiguration,
+    LensParameters,
+    ArrayParameters,
+)
 from lib.lyli_metadata import Metadata
 
 from .exception import CameraDiffersException
 from .gridmath import average_grids
 from .mathutil import filtered_average, sgn
-from .pointgrid import PointGrid
+from .pointgrid import PointGrid, Line as PointLine
 from .linegrid import LineGrid, Line
 
 IMAGE_SIZE = 3280
@@ -39,7 +44,7 @@ def _estimate_camera_matrix(lens: LensMeta) -> np.ndarray:
     return camera_matrix
 
 
-def _find_line_params(line: PointGrid.Line) -> np.ndarray:
+def _find_line_params(line: PointLine) -> np.ndarray:
     points = np.array([p.position for p in line.line], dtype=np.float32)
     line_params = cv2.fitLine(points, cv2.DIST_L2, 0, 0.01, 0.001)
     return line_params.reshape(-1)
@@ -53,7 +58,9 @@ def _parametric_to_general(parametric: np.ndarray) -> np.ndarray:
 def _rotate_general_line(line: np.ndarray, angle: float) -> np.ndarray:
     theta = math.atan2(line[1], line[0])
     p = -line[2] / math.sqrt(line[0] * line[0] + line[1] * line[1])
-    return np.array([math.cos(theta + angle), math.sin(theta + angle), -p], dtype=np.float64)
+    return np.array(
+        [math.cos(theta + angle), math.sin(theta + angle), -p], dtype=np.float64
+    )
 
 
 def _calibrate_rotation(grid_list: List[PointGrid]) -> float:
@@ -72,7 +79,7 @@ def _calibrate_rotation(grid_list: List[PointGrid]) -> float:
 
 
 def _find_translation(
-    lines: List[PointGrid.Line],
+    lines: List[PointLine],
     direction: np.ndarray,
     angle: float,
     target: LineGrid,
@@ -93,8 +100,12 @@ def _find_translation(
                 mapper.map_vertical(line.line[0].vertical_line)
             ]
 
-        target_params = np.array([direction[0], direction[1], -target_line.position], dtype=np.float64)
-        intersect_params = np.array([direction[1], -direction[0], -IMAGE_SIZE / 2], dtype=np.float64)
+        target_params = np.array(
+            [direction[0], direction[1], -target_line.position], dtype=np.float64
+        )
+        intersect_params = np.array(
+            [direction[1], -direction[0], -IMAGE_SIZE / 2], dtype=np.float64
+        )
 
         point1 = np.cross(line_params, intersect_params)
         point2 = np.cross(target_params, intersect_params)
@@ -117,12 +128,20 @@ def _calibrate_translation(
     for i, grid in enumerate(grid_list):
         vertical_distances.append(
             _find_translation(
-                grid.get_horizontal_lines(), np.array([1.0, 0.0]), -angle, target, mappers[i]
+                grid.get_horizontal_lines(),
+                np.array([1.0, 0.0]),
+                -angle,
+                target,
+                mappers[i],
             )
         )
         horizontal_distances.append(
             _find_translation(
-                grid.get_vertical_lines(), np.array([0.0, 1.0]), -angle, target, mappers[i]
+                grid.get_vertical_lines(),
+                np.array([0.0, 1.0]),
+                -angle,
+                target,
+                mappers[i],
             )
         )
     vertical = filtered_average(vertical_distances, 2.0)
@@ -143,7 +162,10 @@ def _linegrid_from_pointgrid(grid: PointGrid) -> LineGrid:
     for line in grid.get_vertical_lines():
         mid_start = len(line.line) // 3
         mid_start = mid_start if (mid_start & 1) == 0 else mid_start - 1
-        xs = [line.line[i].position[1] for i in range(mid_start, 2 * len(line.line) // 3, 2)]
+        xs = [
+            line.line[i].position[1]
+            for i in range(mid_start, 2 * len(line.line) // 3, 2)
+        ]
         position = sum(xs) / len(xs) if xs else 0.0
         vertical.append(Line(subgrid=line.subgrid, position=position))
 
@@ -173,9 +195,9 @@ class Calibrator:
         self._pointgrids.append(pointgrid)
         lens = metadata.lens_meta()
         key = LensMeta(
-            zoom_step=lens["zoom_step"],
-            focus_step=lens["focus_step"],
-            focal_length=lens["focal_length"],
+            zoom_step=int(lens["zoom_step"]),
+            focus_step=int(lens["focus_step"]),
+            focal_length=float(lens["focal_length"]),
         )
         self._cluster_map.setdefault(key, []).append(len(self._pointgrids) - 1)
 
@@ -184,7 +206,9 @@ class Calibrator:
         target, mappers = average_grids(linegrids)
 
         rotation = _calibrate_rotation(self._pointgrids)
-        translation = _calibrate_translation(self._pointgrids, -rotation, target, mappers)
+        translation = _calibrate_translation(
+            self._pointgrids, -rotation, target, mappers
+        )
         array_params = ArrayParameters(
             grid=target,
             translation=np.array([translation[0], translation[1]], dtype=np.float64),
@@ -195,10 +219,14 @@ class Calibrator:
         for lens_meta in self._cluster_map:
             camera_matrix = _estimate_camera_matrix(lens_meta)
             dist_coeffs = np.zeros((8, 1), dtype=np.float64)
-            lens_params = LensParameters(camera_matrix=camera_matrix, dist_coeffs=dist_coeffs)
+            lens_params = LensParameters(
+                camera_matrix=camera_matrix, dist_coeffs=dist_coeffs
+            )
             lens_calib.append(
                 (
-                    LensConfiguration(zoom_step=lens_meta.zoom_step, focus_step=lens_meta.focus_step),
+                    LensConfiguration(
+                        zoom_step=lens_meta.zoom_step, focus_step=lens_meta.focus_step
+                    ),
                     lens_params,
                 )
             )
