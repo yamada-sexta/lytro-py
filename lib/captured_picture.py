@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from lib.lightfield_pipeline import export_flat_png, load_calibration
 from lib.lytro_device import LytroDevice, PictureEntry
 
 
@@ -103,3 +104,11 @@ class CapturedPicture:
             "raw": self.save_raw(directory / f"{base}.RAW"),
         }
         return outputs
+
+    def export_flat(
+        self, calibration_path: str | Path, output_path: str | Path
+    ) -> Path:
+        calibration = load_calibration(calibration_path)
+        return export_flat_png(
+            self.raw_bytes, self.metadata_bytes, calibration, output_path
+        )

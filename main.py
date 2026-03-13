@@ -65,6 +65,13 @@ async def main() -> int:
                 print(f"Exported thumbnail image: {thumb_path}")
             except RuntimeError as exc:
                 print(f"Thumbnail decode failed: {exc}")
+            calibration_path = Path("calibration.json")
+            if calibration_path.exists():
+                flat_path = output_dir / f"{sample.entry.basename}-flat.png"
+                sample.export_flat(calibration_path, flat_path)
+                print(f"Exported flat image: {flat_path}")
+            else:
+                print("Calibration file missing: calibration.json (needed for flat export)")
 
         return 0
     finally:
