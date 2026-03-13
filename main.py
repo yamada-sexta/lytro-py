@@ -4,7 +4,8 @@ import sys
 
 from lib.captured_picture import CapturedPicture
 from lib.lytro_device import LytroDevice
-from lib.calibration import calibrate_directory
+from lib.calibration.pipeline import calibrate_directory
+from lib.lightfield_pipeline import process_directory
 
 
 async def main() -> int:
@@ -13,6 +14,12 @@ async def main() -> int:
         output_path = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
         calibrate_directory(input_dir, output_path)
         print(f"Wrote calibration file: {output_path}")
+        return 0
+    if len(sys.argv) >= 3 and sys.argv[1] == "process":
+        input_dir = Path(sys.argv[2])
+        calibration_path = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
+        outputs = process_directory(input_dir, calibration_path)
+        print(f"Generated {len(outputs)} flat images")
         return 0
 
     camera = LytroDevice.find()
@@ -75,14 +82,17 @@ async def main() -> int:
             except RuntimeError as exc:
                 print(f"Thumbnail decode failed: {exc}")
             calibration_path = Path("calibration.json")
+            if not calibration_path.exists():
+                print("Calibration file missing: calibration.json. Generating it now...")
+                calibrate_directory(output_dir, calibration_path)
+                print(f"Wrote calibration file: {calibration_path}")
+
             if calibration_path.exists():
                 flat_path = output_dir / f"{sample.entry.basename}-flat.png"
                 sample.export_flat(calibration_path, flat_path)
                 print(f"Exported flat image: {flat_path}")
             else:
-                print(
-                    "Calibration file missing: calibration.json (needed for flat export)"
-                )
+                print("Calibration still missing after generation. Skipping flat export.")
 
         return 0
     finally:

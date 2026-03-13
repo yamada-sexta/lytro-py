@@ -45,9 +45,10 @@ def _find_centroid(image: np.ndarray, mask: np.ndarray, start: Tuple[int, int]) 
             tmppos = pos - 1
             x = startx - 1
             while x >= minx and mask.flat[tmppos] == Mask.OBJECT:
-                m10 += y * image.flat[tmppos]
-                m01 += x * image.flat[tmppos]
-                total += image.flat[tmppos]
+                pixel = float(image.flat[tmppos])
+                m10 += float(y) * pixel
+                m01 += float(x) * pixel
+                total += pixel
                 mask.flat[tmppos] = Mask.PROCESSED
                 tmppos -= 1
                 startx -= 1
@@ -55,9 +56,10 @@ def _find_centroid(image: np.ndarray, mask: np.ndarray, start: Tuple[int, int]) 
             tmppos = pos
             x = oldstartx
             while x < maxx and mask.flat[tmppos] == Mask.OBJECT:
-                m10 += y * image.flat[tmppos]
-                m01 += x * image.flat[tmppos]
-                total += image.flat[tmppos]
+                pixel = float(image.flat[tmppos])
+                m10 += float(y) * pixel
+                m01 += float(x) * pixel
+                total += pixel
                 mask.flat[tmppos] = Mask.PROCESSED
                 tmppos += 1
                 x += 1
@@ -71,9 +73,10 @@ def _find_centroid(image: np.ndarray, mask: np.ndarray, start: Tuple[int, int]) 
                 startx += 1
             x = startx
             while x < maxx and mask.flat[tmppos] == Mask.OBJECT:
-                m10 += y * image.flat[tmppos]
-                m01 += x * image.flat[tmppos]
-                total += image.flat[tmppos]
+                pixel = float(image.flat[tmppos])
+                m10 += float(y) * pixel
+                m01 += float(x) * pixel
+                total += pixel
                 mask.flat[tmppos] = Mask.PROCESSED
                 tmppos += 1
                 x += 1

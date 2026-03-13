@@ -1,0 +1,1421 @@
+{
+  "serial": "A303170297",
+  "array": {
+    "grid": {
+      "horizontal": [
+        {
+          "subgrid": 1,
+          "position": 0.0
+        },
+        {
+          "subgrid": 0,
+          "position": 4.2001094833523585
+        },
+        {
+          "subgrid": 1,
+          "position": 10.182024455237826
+        },
+        {
+          "subgrid": 0,
+          "position": 18.372568314368536
+        },
+        {
+          "subgrid": 1,
+          "position": 27.910434652535038
+        },
+        {
+          "subgrid": 0,
+          "position": 35.75440345576349
+        },
+        {
+          "subgrid": 1,
+          "position": 44.80474754964994
+        },
+        {
+          "subgrid": 0,
+          "position": 53.41926221779682
+        },
+        {
+          "subgrid": 1,
+          "position": 62.6544521158097
+        },
+        {
+          "subgrid": 0,
+          "position": 70.23524716984419
+        },
+        {
+          "subgrid": 1,
+          "position": 79.74108147459226
+        },
+        {
+          "subgrid": 0,
+          "position": 88.19426871911247
+        },
+        {
+          "subgrid": 1,
+          "position": 96.74279457048917
+        },
+        {
+          "subgrid": 0,
+          "position": 105.34636091339574
+        },
+        {
+          "subgrid": 1,
+          "position": 114.45688344201419
+        },
+        {
+          "subgrid": 0,
+          "position": 122.05491042786302
+        },
+        {
+          "subgrid": 1,
+          "position": 131.34198409875165
+        },
+        {
+          "subgrid": 0,
+          "position": 140.0307300850374
+        },
+        {
+          "subgrid": 1,
+          "position": 148.79203110029215
+        },
+        {
+          "subgrid": 0,
+          "position": 156.95553306473641
+        },
+        {
+          "subgrid": 1,
+          "position": 166.49890569847562
+        },
+        {
+          "subgrid": 0,
+          "position": 173.9286477285629
+        },
+        {
+          "subgrid": 1,
+          "position": 183.1693201979697
+        },
+        {
+          "subgrid": 0,
+          "position": 191.90788754438017
+        },
+        {
+          "subgrid": 1,
+          "position": 200.61593951661803
+        },
+        {
+          "subgrid": 0,
+          "position": 208.5939952356464
+        },
+        {
+          "subgrid": 1,
+          "position": 218.34314039365964
+        },
+        {
+          "subgrid": 0,
+          "position": 226.622503845719
+        },
+        {
+          "subgrid": 1,
+          "position": 235.0970953631719
+        },
+        {
+          "subgrid": 0,
+          "position": 244.1414897967917
+        },
+        {
+          "subgrid": 1,
+          "position": 253.17823124149928
+        },
+        {
+          "subgrid": 0,
+          "position": 260.811820929753
+        },
+        {
+          "subgrid": 1,
+          "position": 270.0861661903221
+        },
+        {
+          "subgrid": 0,
+          "position": 278.81864445240615
+        },
+        {
+          "subgrid": 1,
+          "position": 287.0130377367105
+        },
+        {
+          "subgrid": 0,
+          "position": 295.59557263375694
+        },
+        {
+          "subgrid": 1,
+          "position": 305.3741243343203
+        },
+        {
+          "subgrid": 0,
+          "position": 312.75814878023516
+        },
+        {
+          "subgrid": 1,
+          "position": 322.0478205921867
+        },
+        {
+          "subgrid": 0,
+          "position": 330.7754893446695
+        },
+        {
+          "subgrid": 1,
+          "position": 339.4541186961159
+        },
+        {
+          "subgrid": 0,
+          "position": 347.3644076227983
+        },
+        {
+          "subgrid": 1,
+          "position": 357.2523375572622
+        },
+        {
+          "subgrid": 0,
+          "position": 365.1183005964774
+        },
+        {
+          "subgrid": 1,
+          "position": 374.00262234492527
+        },
+        {
+          "subgrid": 0,
+          "position": 382.4710154050893
+        },
+        {
+          "subgrid": 1,
+          "position": 391.74905950143886
+        },
+        {
+          "subgrid": 0,
+          "position": 399.6166742864566
+        },
+        {
+          "subgrid": 1,
+          "position": 408.637958666211
+        },
+        {
+          "subgrid": 0,
+          "position": 417.2911830418975
+        },
+        {
+          "subgrid": 1,
+          "position": 425.92156740828614
+        },
+        {
+          "subgrid": 0,
+          "position": 434.26095319338907
+        },
+        {
+          "subgrid": 1,
+          "position": 443.79531280237836
+        },
+        {
+          "subgrid": 0,
+          "position": 451.96751228980094
+        },
+        {
+          "subgrid": 1,
+          "position": 460.1880026079029
+        },
+        {
+          "subgrid": 0,
+          "position": 469.15438949337795
+        },
+        {
+          "subgrid": 1,
+          "position": 477.89835333936486
+        },
+        {
+          "subgrid": 0,
+          "position": 485.77743026318836
+        },
+        {
+          "subgrid": 1,
+          "position": 494.96033374170463
+        },
+        {
+          "subgrid": 0,
+          "position": 503.848539127154
+        },
+        {
+          "subgrid": 1,
+          "position": 511.80070219544814
+        },
+        {
+          "subgrid": 0,
+          "position": 520.7676201305302
+        },
+        {
+          "subgrid": 1,
+          "position": 529.9504818433448
+        },
+        {
+          "subgrid": 0,
+          "position": 538.0704496952875
+        },
+        {
+          "subgrid": 1,
+          "position": 547.1789254363792
+        },
+        {
+          "subgrid": 0,
+          "position": 556.3177952669527
+        },
+        {
+          "subgrid": 1,
+          "position": 565.1755915828776
+        },
+        {
+          "subgrid": 0,
+          "position": 573.7646321494931
+        },
+        {
+          "subgrid": 1,
+          "position": 582.7186339596936
+        },
+        {
+          "subgrid": 0,
+          "position": 591.7600486538115
+        },
+        {
+          "subgrid": 1,
+          "position": 599.5558601054411
+        },
+        {
+          "subgrid": 0,
+          "position": 608.1561400648579
+        },
+        {
+          "subgrid": 1,
+          "position": 616.7069545119989
+        },
+        {
+          "subgrid": 0,
+          "position": 624.5774351239493
+        },
+        {
+          "subgrid": 1,
+          "position": 633.8278174868143
+        },
+        {
+          "subgrid": 0,
+          "position": 642.2794868302587
+        },
+        {
+          "subgrid": 1,
+          "position": 650.5017950965067
+        },
+        {
+          "subgrid": 0,
+          "position": 659.3302331228091
+        },
+        {
+          "subgrid": 1,
+          "position": 668.25795971587
+        },
+        {
+          "subgrid": 0,
+          "position": 676.6309155024609
+        },
+        {
+          "subgrid": 1,
+          "position": 685.3532678561334
+        },
+        {
+          "subgrid": 0,
+          "position": 694.1966769114442
+        },
+        {
+          "subgrid": 1,
+          "position": 702.9824887041742
+        },
+        {
+          "subgrid": 0,
+          "position": 711.3030273219897
+        },
+        {
+          "subgrid": 1,
+          "position": 720.044871243581
+        },
+        {
+          "subgrid": 0,
+          "position": 728.9956436185156
+        },
+        {
+          "subgrid": 1,
+          "position": 737.2157321676583
+        },
+        {
+          "subgrid": 0,
+          "position": 746.0209135835993
+        },
+        {
+          "subgrid": 1,
+          "position": 754.9772890777703
+        },
+        {
+          "subgrid": 0,
+          "position": 763.185900689009
+        },
+        {
+          "subgrid": 1,
+          "position": 771.8456544979946
+        },
+        {
+          "subgrid": 0,
+          "position": 781.2195936366741
+        },
+        {
+          "subgrid": 1,
+          "position": 789.2586085751744
+        },
+        {
+          "subgrid": 0,
+          "position": 797.8181595360332
+        },
+        {
+          "subgrid": 1,
+          "position": 807.0120653470383
+        },
+        {
+          "subgrid": 1,
+          "position": 910.4443073971116
+        },
+        {
+          "subgrid": 0,
+          "position": 919.7585942172593
+        },
+        {
+          "subgrid": 1,
+          "position": 927.703082945514
+        },
+        {
+          "subgrid": 0,
+          "position": 936.5576753709604
+        },
+        {
+          "subgrid": 1,
+          "position": 945.7159910597488
+        },
+        {
+          "subgrid": 0,
+          "position": 953.7550256175706
+        },
+        {
+          "subgrid": 1,
+          "position": 962.3795941129158
+        },
+        {
+          "subgrid": 0,
+          "position": 1109.9696163622818
+        },
+        {
+          "subgrid": 0,
+          "position": 1196.949346394626
+        },
+        {
+          "subgrid": 1,
+          "position": 1205.3020953138816
+        },
+        {
+          "subgrid": 0,
+          "position": 1213.860459831991
+        },
+        {
+          "subgrid": 1,
+          "position": 1222.9706339713568
+        },
+        {
+          "subgrid": 0,
+          "position": 1231.399218637585
+        },
+        {
+          "subgrid": 1,
+          "position": 1239.8488584752388
+        },
+        {
+          "subgrid": 0,
+          "position": 1249.0895819858213
+        },
+        {
+          "subgrid": 1,
+          "position": 1439.2245407413443
+        },
+        {
+          "subgrid": 0,
+          "position": 1448.8773475127225
+        },
+        {
+          "subgrid": 1,
+          "position": 1457.3074772940631
+        },
+        {
+          "subgrid": 0,
+          "position": 1465.5863959879637
+        },
+        {
+          "subgrid": 1,
+          "position": 1482.772193314032
+        },
+        {
+          "subgrid": 0,
+          "position": 1500.382194592569
+        },
+        {
+          "subgrid": 1,
+          "position": 1508.985742942002
+        },
+        {
+          "subgrid": 0,
+          "position": 1526.688098587931
+        },
+        {
+          "subgrid": 0,
+          "position": 2547.914438498695
+        },
+        {
+          "subgrid": 1,
+          "position": 2557.000483463713
+        },
+        {
+          "subgrid": 0,
+          "position": 2747.7414954046353
+        },
+        {
+          "subgrid": 1,
+          "position": 2756.1852778084367
+        },
+        {
+          "subgrid": 0,
+          "position": 2782.3115327747064
+        },
+        {
+          "subgrid": 1,
+          "position": 2791.6257849865
+        },
+        {
+          "subgrid": 0,
+          "position": 2799.5616064582514
+        },
+        {
+          "subgrid": 1,
+          "position": 2808.890399578053
+        },
+        {
+          "subgrid": 0,
+          "position": 2817.827708331715
+        },
+        {
+          "subgrid": 1,
+          "position": 2825.2770423084
+        },
+        {
+          "subgrid": 0,
+          "position": 2834.067646338807
+        },
+        {
+          "subgrid": 1,
+          "position": 2956.3483736140474
+        },
+        {
+          "subgrid": 0,
+          "position": 2972.8852864830033
+        },
+        {
+          "subgrid": 1,
+          "position": 2982.3033003749424
+        },
+        {
+          "subgrid": 0,
+          "position": 3007.7925214847805
+        },
+        {
+          "subgrid": 1,
+          "position": 3015.914414269631
+        },
+        {
+          "subgrid": 0,
+          "position": 3024.761188596166
+        },
+        {
+          "subgrid": 1,
+          "position": 3033.5784080730496
+        },
+        {
+          "subgrid": 0,
+          "position": 3041.956107855891
+        },
+        {
+          "subgrid": 1,
+          "position": 3050.1942049758964
+        },
+        {
+          "subgrid": 0,
+          "position": 3059.5083867643107
+        },
+        {
+          "subgrid": 1,
+          "position": 3180.8945876500657
+        }
+      ],
+      "vertical": [
+        {
+          "subgrid": 1,
+          "position": 3.868742228804035
+        },
+        {
+          "subgrid": 0,
+          "position": 5.158314435096477
+        },
+        {
+          "subgrid": 1,
+          "position": 10.265810177563653
+        },
+        {
+          "subgrid": 0,
+          "position": 15.151089089699045
+        },
+        {
+          "subgrid": 1,
+          "position": 20.202627340337294
+        },
+        {
+          "subgrid": 0,
+          "position": 25.148911262072474
+        },
+        {
+          "subgrid": 1,
+          "position": 30.25554538948061
+        },
+        {
+          "subgrid": 0,
+          "position": 35.27302782406874
+        },
+        {
+          "subgrid": 1,
+          "position": 40.438130295897274
+        },
+        {
+          "subgrid": 0,
+          "position": 45.4252302111816
+        },
+        {
+          "subgrid": 1,
+          "position": 50.602543365616555
+        },
+        {
+          "subgrid": 0,
+          "position": 55.45097305003988
+        },
+        {
+          "subgrid": 1,
+          "position": 60.27248676463104
+        },
+        {
+          "subgrid": 0,
+          "position": 65.40574596214564
+        },
+        {
+          "subgrid": 1,
+          "position": 70.40111265047545
+        },
+        {
+          "subgrid": 0,
+          "position": 75.58998283161189
+        },
+        {
+          "subgrid": 1,
+          "position": 80.62853158903447
+        },
+        {
+          "subgrid": 0,
+          "position": 85.64378196876395
+        },
+        {
+          "subgrid": 1,
+          "position": 90.5813571640783
+        },
+        {
+          "subgrid": 0,
+          "position": 95.57358636153413
+        },
+        {
+          "subgrid": 1,
+          "position": 100.62339624561046
+        },
+        {
+          "subgrid": 0,
+          "position": 105.63573597686761
+        },
+        {
+          "subgrid": 1,
+          "position": 110.68559336741616
+        },
+        {
+          "subgrid": 0,
+          "position": 115.73405890590546
+        },
+        {
+          "subgrid": 1,
+          "position": 120.85095044729232
+        },
+        {
+          "subgrid": 0,
+          "position": 125.76400458348105
+        },
+        {
+          "subgrid": 1,
+          "position": 130.84056025790582
+        },
+        {
+          "subgrid": 0,
+          "position": 135.6998481733266
+        },
+        {
+          "subgrid": 1,
+          "position": 140.68619386139036
+        },
+        {
+          "subgrid": 0,
+          "position": 145.91666454498468
+        },
+        {
+          "subgrid": 1,
+          "position": 150.77078001217484
+        },
+        {
+          "subgrid": 0,
+          "position": 155.68221379293328
+        },
+        {
+          "subgrid": 1,
+          "position": 160.91834311291817
+        },
+        {
+          "subgrid": 0,
+          "position": 165.81621927404044
+        },
+        {
+          "subgrid": 1,
+          "position": 170.94489182578636
+        },
+        {
+          "subgrid": 0,
+          "position": 175.68555123182446
+        },
+        {
+          "subgrid": 1,
+          "position": 180.93055092623945
+        },
+        {
+          "subgrid": 0,
+          "position": 185.7617861406006
+        },
+        {
+          "subgrid": 1,
+          "position": 190.95765474433992
+        },
+        {
+          "subgrid": 0,
+          "position": 195.9495294283764
+        },
+        {
+          "subgrid": 1,
+          "position": 200.90530351447373
+        },
+        {
+          "subgrid": 0,
+          "position": 205.9675936525431
+        },
+        {
+          "subgrid": 1,
+          "position": 210.9410696041692
+        },
+        {
+          "subgrid": 0,
+          "position": 216.0029238730562
+        },
+        {
+          "subgrid": 1,
+          "position": 220.87216968035068
+        },
+        {
+          "subgrid": 0,
+          "position": 225.71802989219142
+        },
+        {
+          "subgrid": 1,
+          "position": 230.9893744928198
+        },
+        {
+          "subgrid": 0,
+          "position": 235.8451240181356
+        },
+        {
+          "subgrid": 1,
+          "position": 240.9130264273466
+        },
+        {
+          "subgrid": 0,
+          "position": 245.8318330739897
+        },
+        {
+          "subgrid": 1,
+          "position": 250.8538862586439
+        },
+        {
+          "subgrid": 0,
+          "position": 255.5481290234074
+        },
+        {
+          "subgrid": 1,
+          "position": 260.8306855339364
+        },
+        {
+          "subgrid": 0,
+          "position": 265.5386856507933
+        },
+        {
+          "subgrid": 1,
+          "position": 270.7306955655854
+        },
+        {
+          "subgrid": 0,
+          "position": 275.570910535852
+        },
+        {
+          "subgrid": 1,
+          "position": 280.7662243232984
+        },
+        {
+          "subgrid": 0,
+          "position": 285.5350495403763
+        },
+        {
+          "subgrid": 1,
+          "position": 290.86214371138647
+        },
+        {
+          "subgrid": 0,
+          "position": 295.8120367247068
+        },
+        {
+          "subgrid": 1,
+          "position": 300.67417047098206
+        },
+        {
+          "subgrid": 0,
+          "position": 305.77242763332987
+        },
+        {
+          "subgrid": 1,
+          "position": 310.819964494387
+        },
+        {
+          "subgrid": 0,
+          "position": 315.55405689768907
+        },
+        {
+          "subgrid": 1,
+          "position": 320.64189909850796
+        },
+        {
+          "subgrid": 0,
+          "position": 325.63538029319557
+        },
+        {
+          "subgrid": 1,
+          "position": 330.6194375740308
+        },
+        {
+          "subgrid": 0,
+          "position": 335.54931892472763
+        },
+        {
+          "subgrid": 1,
+          "position": 340.56180513743396
+        },
+        {
+          "subgrid": 0,
+          "position": 345.82972261396606
+        },
+        {
+          "subgrid": 1,
+          "position": 350.5748547664145
+        },
+        {
+          "subgrid": 0,
+          "position": 355.59331978142205
+        },
+        {
+          "subgrid": 1,
+          "position": 360.6958766081925
+        },
+        {
+          "subgrid": 0,
+          "position": 365.7660426227769
+        },
+        {
+          "subgrid": 1,
+          "position": 370.8232134983162
+        },
+        {
+          "subgrid": 0,
+          "position": 375.8900861732921
+        },
+        {
+          "subgrid": 1,
+          "position": 380.88141298972585
+        },
+        {
+          "subgrid": 0,
+          "position": 386.25754051464526
+        },
+        {
+          "subgrid": 1,
+          "position": 391.2988371827569
+        },
+        {
+          "subgrid": 0,
+          "position": 396.7337408614671
+        },
+        {
+          "subgrid": 1,
+          "position": 520.7989444949868
+        },
+        {
+          "subgrid": 1,
+          "position": 531.0297166089321
+        },
+        {
+          "subgrid": 0,
+          "position": 536.0687620173438
+        },
+        {
+          "subgrid": 1,
+          "position": 540.6846891211311
+        },
+        {
+          "subgrid": 1,
+          "position": 560.7694584362041
+        },
+        {
+          "subgrid": 1,
+          "position": 570.6460418622496
+        },
+        {
+          "subgrid": 0,
+          "position": 585.8196062791067
+        },
+        {
+          "subgrid": 0,
+          "position": 595.8851530204763
+        },
+        {
+          "subgrid": 1,
+          "position": 601.022956496703
+        },
+        {
+          "subgrid": 1,
+          "position": 630.7881220572804
+        },
+        {
+          "subgrid": 1,
+          "position": 640.1091743630714
+        },
+        {
+          "subgrid": 0,
+          "position": 645.069283401552
+        },
+        {
+          "subgrid": 1,
+          "position": 650.4703150914202
+        },
+        {
+          "subgrid": 1,
+          "position": 660.7628936207645
+        },
+        {
+          "subgrid": 0,
+          "position": 675.7674842146517
+        },
+        {
+          "subgrid": 1,
+          "position": 691.545610181028
+        },
+        {
+          "subgrid": 1,
+          "position": 700.6544786045183
+        },
+        {
+          "subgrid": 1,
+          "position": 720.4069744514406
+        },
+        {
+          "subgrid": 1,
+          "position": 730.963694104898
+        },
+        {
+          "subgrid": 1,
+          "position": 740.9307730183434
+        },
+        {
+          "subgrid": 1,
+          "position": 750.9891125427696
+        },
+        {
+          "subgrid": 1,
+          "position": 760.8775768930275
+        },
+        {
+          "subgrid": 1,
+          "position": 810.8661000811335
+        },
+        {
+          "subgrid": 0,
+          "position": 815.8633099779148
+        },
+        {
+          "subgrid": 1,
+          "position": 830.8722982828198
+        },
+        {
+          "subgrid": 1,
+          "position": 851.3756930430928
+        },
+        {
+          "subgrid": 1,
+          "position": 860.836451622889
+        },
+        {
+          "subgrid": 0,
+          "position": 865.8957888725395
+        },
+        {
+          "subgrid": 1,
+          "position": 871.2574887233797
+        },
+        {
+          "subgrid": 0,
+          "position": 876.2635758307576
+        },
+        {
+          "subgrid": 1,
+          "position": 880.9645401698239
+        },
+        {
+          "subgrid": 1,
+          "position": 901.0945799553068
+        },
+        {
+          "subgrid": 0,
+          "position": 906.1903053657852
+        },
+        {
+          "subgrid": 1,
+          "position": 911.2108790601255
+        },
+        {
+          "subgrid": 1,
+          "position": 921.2392507289456
+        },
+        {
+          "subgrid": 0,
+          "position": 926.3189786411522
+        },
+        {
+          "subgrid": 1,
+          "position": 931.022250826595
+        },
+        {
+          "subgrid": 0,
+          "position": 936.0473919456463
+        },
+        {
+          "subgrid": 1,
+          "position": 951.2237786143405
+        },
+        {
+          "subgrid": 0,
+          "position": 955.8867359951272
+        },
+        {
+          "subgrid": 1,
+          "position": 961.2705538189672
+        },
+        {
+          "subgrid": 0,
+          "position": 966.1350645828745
+        },
+        {
+          "subgrid": 1,
+          "position": 971.1260650835361
+        },
+        {
+          "subgrid": 0,
+          "position": 976.2863399142726
+        },
+        {
+          "subgrid": 1,
+          "position": 981.1558330145828
+        },
+        {
+          "subgrid": 0,
+          "position": 986.3906660620045
+        },
+        {
+          "subgrid": 0,
+          "position": 996.3680087187523
+        },
+        {
+          "subgrid": 1,
+          "position": 1001.0592930232
+        },
+        {
+          "subgrid": 0,
+          "position": 1006.1918992057997
+        },
+        {
+          "subgrid": 1,
+          "position": 1011.2344314392574
+        },
+        {
+          "subgrid": 0,
+          "position": 1016.3593861504319
+        },
+        {
+          "subgrid": 1,
+          "position": 1021.0736139122582
+        },
+        {
+          "subgrid": 1,
+          "position": 1041.0366724597952
+        },
+        {
+          "subgrid": 1,
+          "position": 1061.3933095831608
+        },
+        {
+          "subgrid": 1,
+          "position": 1071.745941925078
+        },
+        {
+          "subgrid": 0,
+          "position": 1076.2865912345064
+        },
+        {
+          "subgrid": 1,
+          "position": 1081.4524732473983
+        },
+        {
+          "subgrid": 0,
+          "position": 1086.2902576574381
+        },
+        {
+          "subgrid": 1,
+          "position": 1091.2225163062608
+        },
+        {
+          "subgrid": 1,
+          "position": 1101.0543121086077
+        },
+        {
+          "subgrid": 0,
+          "position": 1106.142201039429
+        },
+        {
+          "subgrid": 1,
+          "position": 1111.1030135271255
+        },
+        {
+          "subgrid": 1,
+          "position": 1121.0369287454757
+        },
+        {
+          "subgrid": 0,
+          "position": 1126.1580201615634
+        },
+        {
+          "subgrid": 1,
+          "position": 1131.3033627850486
+        },
+        {
+          "subgrid": 0,
+          "position": 1136.104965642114
+        },
+        {
+          "subgrid": 1,
+          "position": 1141.2119804381869
+        },
+        {
+          "subgrid": 0,
+          "position": 1146.2735073565043
+        },
+        {
+          "subgrid": 1,
+          "position": 1151.1663465664249
+        },
+        {
+          "subgrid": 0,
+          "position": 1156.3219975961038
+        },
+        {
+          "subgrid": 1,
+          "position": 1161.1622553398927
+        },
+        {
+          "subgrid": 0,
+          "position": 1166.0737039279436
+        },
+        {
+          "subgrid": 1,
+          "position": 1171.2169370412626
+        },
+        {
+          "subgrid": 0,
+          "position": 1176.4081817539375
+        },
+        {
+          "subgrid": 1,
+          "position": 1181.0822995448025
+        },
+        {
+          "subgrid": 0,
+          "position": 1185.9981477517013
+        },
+        {
+          "subgrid": 1,
+          "position": 1191.30009010389
+        },
+        {
+          "subgrid": 0,
+          "position": 1196.2471165133893
+        },
+        {
+          "subgrid": 1,
+          "position": 1201.1290886310849
+        },
+        {
+          "subgrid": 1,
+          "position": 1211.349531047357
+        },
+        {
+          "subgrid": 0,
+          "position": 1216.1883568535775
+        },
+        {
+          "subgrid": 1,
+          "position": 1221.1846312333928
+        },
+        {
+          "subgrid": 0,
+          "position": 1226.415190018133
+        },
+        {
+          "subgrid": 1,
+          "position": 1231.185799173348
+        },
+        {
+          "subgrid": 0,
+          "position": 1236.3352029660641
+        },
+        {
+          "subgrid": 1,
+          "position": 1241.2926830851318
+        },
+        {
+          "subgrid": 1,
+          "position": 1251.3577268280046
+        },
+        {
+          "subgrid": 1,
+          "position": 1261.1884607771974
+        },
+        {
+          "subgrid": 0,
+          "position": 1266.24153121795
+        },
+        {
+          "subgrid": 1,
+          "position": 1271.2784939405315
+        },
+        {
+          "subgrid": 1,
+          "position": 1281.282216998556
+        },
+        {
+          "subgrid": 1,
+          "position": 1291.413226084857
+        },
+        {
+          "subgrid": 1,
+          "position": 1311.330269312269
+        },
+        {
+          "subgrid": 0,
+          "position": 1596.21064124666
+        },
+        {
+          "subgrid": 0,
+          "position": 1606.484272678932
+        },
+        {
+          "subgrid": 0,
+          "position": 1616.6268582854034
+        },
+        {
+          "subgrid": 1,
+          "position": 1731.5388091480963
+        },
+        {
+          "subgrid": 1,
+          "position": 1741.7559145203388
+        },
+        {
+          "subgrid": 1,
+          "position": 2000.7472264206708
+        },
+        {
+          "subgrid": 0,
+          "position": 2006.1257845486161
+        },
+        {
+          "subgrid": 1,
+          "position": 2011.623483144337
+        },
+        {
+          "subgrid": 0,
+          "position": 2016.7798862319967
+        },
+        {
+          "subgrid": 1,
+          "position": 2022.2291874121681
+        },
+        {
+          "subgrid": 0,
+          "position": 2296.5218975468374
+        },
+        {
+          "subgrid": 0,
+          "position": 2306.526828420629
+        },
+        {
+          "subgrid": 1,
+          "position": 2311.3056012413695
+        },
+        {
+          "subgrid": 0,
+          "position": 2316.487135726742
+        },
+        {
+          "subgrid": 1,
+          "position": 2321.774389390348
+        },
+        {
+          "subgrid": 0,
+          "position": 2326.483168720235
+        },
+        {
+          "subgrid": 1,
+          "position": 2331.3749837192863
+        },
+        {
+          "subgrid": 0,
+          "position": 2336.672376198047
+        },
+        {
+          "subgrid": 1,
+          "position": 2341.9351316885604
+        },
+        {
+          "subgrid": 0,
+          "position": 2346.8915644519398
+        },
+        {
+          "subgrid": 1,
+          "position": 2352.060583102107
+        },
+        {
+          "subgrid": 0,
+          "position": 2505.579288726758
+        },
+        {
+          "subgrid": 1,
+          "position": 2871.7584121167592
+        },
+        {
+          "subgrid": 1,
+          "position": 3071.8152723394323
+        },
+        {
+          "subgrid": 1,
+          "position": 3131.8707136886915
+        }
+      ]
+    },
+    "translation": [
+      -2.258133077631751,
+      0.347497195166538
+    ],
+    "rotation": 0.0007448158112317231
+  },
+  "lens": [
+    {
+      "configuration": {
+        "zoomStep": 896,
+        "focusStep": 667
+      },
+      "parameters": {
+        "cameraMatrix": [
+          [
+            5255.130353181258,
+            0.0,
+            1640.0
+          ],
+          [
+            0.0,
+            5255.130353181258,
+            1640.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "distCoeffs": [
+          [
+            0.0
+          ],
+          [
+            0.0
+          ],
+          [
+            0.0
+          ],
+          [
+            0.0
+          ],
+          [
+            0.0
+          ],
+          [
+            0.0
+          ],
+          [
+            0.0
+          ],
+          [
+            0.0
+          ]
+        ]
+      }
+    }
+  ]
+}

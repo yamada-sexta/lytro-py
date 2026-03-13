@@ -45,6 +45,8 @@ def _estimate_camera_matrix(lens: LensMeta) -> np.ndarray:
 
 
 def _find_line_params(line: PointLine) -> np.ndarray:
+    if len(line.line) < 2:
+        raise ValueError("Line has too few points for fitLine")
     points = np.array([p.position for p in line.line], dtype=np.float32)
     line_params = cv2.fitLine(points, cv2.DIST_L2, 0, 0.01, 0.001)
     return line_params.reshape(-1)
@@ -68,6 +70,8 @@ def _calibrate_rotation(grid_list: List[PointGrid]) -> float:
     for grid in grid_list:
         local_angles = []
         for line in grid.get_vertical_lines():
+            if len(line.line) < 2:
+                continue
             params = _find_line_params(line)
             optimal = np.array([1.0, 0.0])
             line_dir = np.array([params[0], params[1]])
@@ -87,6 +91,8 @@ def _find_translation(
 ) -> float:
     distances = []
     for line in lines:
+        if len(line.line) < 2:
+            continue
         parametric = _find_line_params(line)
         general = _parametric_to_general(parametric)
         line_params = _rotate_general_line(general, angle)
@@ -114,6 +120,8 @@ def _find_translation(
         dif = point1_e2 - point2_e2
         sign = sgn(float(np.dot(dif, np.array([1.0, 1.0]))))
         distances.append(sign * float(np.linalg.norm(dif)))
+    if not distances:
+        return float("nan")
     return filtered_average(distances, 2.0)
 
 
@@ -126,24 +134,26 @@ def _calibrate_translation(
     vertical_distances = []
     horizontal_distances = []
     for i, grid in enumerate(grid_list):
-        vertical_distances.append(
-            _find_translation(
-                grid.get_horizontal_lines(),
-                np.array([1.0, 0.0]),
-                -angle,
-                target,
-                mappers[i],
-            )
+        v = _find_translation(
+            grid.get_horizontal_lines(),
+            np.array([1.0, 0.0]),
+            -angle,
+            target,
+            mappers[i],
         )
-        horizontal_distances.append(
-            _find_translation(
-                grid.get_vertical_lines(),
-                np.array([0.0, 1.0]),
-                -angle,
-                target,
-                mappers[i],
-            )
+        h = _find_translation(
+            grid.get_vertical_lines(),
+            np.array([0.0, 1.0]),
+            -angle,
+            target,
+            mappers[i],
         )
+        if not math.isnan(v):
+            vertical_distances.append(v)
+        if not math.isnan(h):
+            horizontal_distances.append(h)
+    if not vertical_distances or not horizontal_distances:
+        return 0.0, 0.0
     vertical = filtered_average(vertical_distances, 2.0)
     horizontal = filtered_average(horizontal_distances, 2.0)
     return vertical, horizontal
