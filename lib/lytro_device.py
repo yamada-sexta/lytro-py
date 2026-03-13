@@ -198,11 +198,15 @@ class LytroDevice(UsbMassStorage):
         )
         return await self.download_data()
 
-    async def get_firmware_text(self) -> bytes:
-        return await self.get_file("A:\\FIRMWARE.TXT")
+    async def get_file_text(self, file_path: str) -> str:
+        data = await self.get_file(file_path)
+        return data.decode("utf-8", errors="ignore")
 
-    async def get_vcm_text(self) -> bytes:
-        return await self.get_file("A:\\VCM.TXT")
+    async def get_firmware_text(self) -> str:
+        return await self.get_file_text("A:\\FIRMWARE.TXT")
+
+    async def get_vcm_text(self) -> str:
+        return await self.get_file_text("A:\\VCM.TXT")
 
     async def get_camera_information(self) -> CameraInfo:
         vendor, product, revision = await self.scsi_inquiry()
