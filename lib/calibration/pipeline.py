@@ -30,6 +30,7 @@ def calibrate_directory(
     detector = LensDetector(preprocessor)
     calibrator = Calibrator()
 
+    grids_added = 0
     for raw_path in raw_files:
         base = raw_path.with_suffix("")
         meta_path = base.with_suffix(".TXT")
@@ -44,7 +45,13 @@ def calibrate_directory(
         if point_grid.is_empty():
             continue
         calibrator.add_grid(point_grid, metadata)
+        grids_added += 1
 
+    if grids_added == 0:
+        raise RuntimeError(
+            f"No usable calibration grids detected in {directory}. "
+            "Make sure calibration images are present."
+        )
     calibration = calibrator.calibrate()
     output_path = Path(output_path)
     output_path.write_text(json.dumps(calibration.to_json(), indent=2), encoding="utf-8")

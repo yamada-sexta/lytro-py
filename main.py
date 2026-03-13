@@ -84,7 +84,26 @@ async def main() -> int:
             calibration_path = Path("calibration.json")
             if not calibration_path.exists():
                 print("Calibration file missing: calibration.json. Generating it now...")
-                calibrate_directory(output_dir, calibration_path)
+                calib_dir = output_dir / "calibration"
+                calib_dir.mkdir(parents=True, exist_ok=True)
+                # Download calibration images from camera (C:\\T1CALIB\\MOD_0000..0061)
+                downloaded = 0
+                skipped = 0
+                for i in range(62):
+                    name = f"MOD_{i:04d}"
+                    raw_path = f"C:\\T1CALIB\\{name}.RAW"
+                    txt_path = f"C:\\T1CALIB\\{name}.TXT"
+                    try:
+                        raw_bytes = await camera.get_file(raw_path)
+                        txt_bytes = await camera.get_file(txt_path)
+                        (calib_dir / f"{name}.RAW").write_bytes(raw_bytes)
+                        (calib_dir / f"{name}.TXT").write_bytes(txt_bytes)
+                        downloaded += 1
+                    except Exception as exc:
+                        print(f"Skipping calibration image {name}: {exc}")
+                        skipped += 1
+                print(f"Downloaded calibration images: {downloaded}, skipped: {skipped}")
+                calibrate_directory(calib_dir, calibration_path)
                 print(f"Wrote calibration file: {calibration_path}")
 
             if calibration_path.exists():

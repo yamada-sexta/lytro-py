@@ -26,8 +26,8 @@ class LightfieldImage:
         transform = rotation @ translation
         tmp = cv2.warpAffine(tmp, transform, (tmp.shape[1], tmp.shape[0]))
 
-        horizontal = calibration.array.grid.horizontal
-        vertical = calibration.array.grid.vertical
+        horizontal = calibration.array.grid.get_horizontal_lines()
+        vertical = calibration.array.grid.get_vertical_lines()
         out_h = len(horizontal)
         out_w = len(vertical) // 2
         out = np.zeros((out_h, out_w, 3), dtype=np.uint16)
