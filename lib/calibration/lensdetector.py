@@ -93,9 +93,9 @@ def _get_interpolated_color(image: np.ndarray, position: Tuple[float, float]) ->
     xx = int(np.floor(x))
     yy = int(np.floor(y))
     x0 = xx
-    x1 = xx + 1
+    x1 = min(xx + 1, image.shape[1] - 1)
     y0 = yy
-    y1 = yy + 1
+    y1 = min(yy + 1, image.shape[0] - 1)
     f00 = float(image[y0, x0])
     f01 = float(image[y0, x1])
     f10 = float(image[y1, x0])
@@ -125,9 +125,24 @@ _OFFSET_LIST = [
 ]
 
 
-def _refine_centroid(image: np.ndarray, start: Tuple[float, float]) -> Tuple[float, float]:
-    estimate_x, estimate_y = start
+def _get_offset_list(max_radius: int) -> List[List[Tuple[float, float]]]:
+    filtered: List[List[Tuple[float, float]]] = []
     for mask in _OFFSET_LIST:
+        if not mask:
+            continue
+        max_val = 0.0
+        for dx, dy in mask:
+            max_val = max(max_val, abs(dx), abs(dy))
+        if int(round(max_val)) <= max_radius:
+            filtered.append(mask)
+    return filtered
+
+
+def _refine_centroid(
+    image: np.ndarray, start: Tuple[float, float], max_radius: int = 6
+) -> Tuple[float, float]:
+    estimate_x, estimate_y = start
+    for mask in _get_offset_list(max_radius):
         m01 = 0.0
         m10 = 0.0
         total = 0.0
@@ -165,9 +180,18 @@ class LensDetector:
         num_labels, _, stats, centroids = cv2.connectedComponentsWithStats(
             binary, connectivity=8
         )
+        centroids_list: List[Tuple[float, float]] = []
         for label in range(1, num_labels):
+            # Skip tiny components to speed up
+            if stats[label, cv2.CC_STAT_AREA] < 4:
+                continue
             cx, cy = centroids[label]
-            centroid = _refine_centroid(gray_t, (float(cx), float(cy)))
+            centroid = _refine_centroid(gray_t, (float(cx), float(cy)), max_radius=4)
+            centroids_list.append(centroid)
+
+        # PointGrid expects points in increasing y-order
+        centroids_list.sort(key=lambda p: p[1])
+        for centroid in centroids_list:
             pointgrid.add_point(centroid)
 
         pointgrid.finalize()

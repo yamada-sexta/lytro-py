@@ -105,6 +105,15 @@ async def main() -> int:
                     raw_path = f"C:\\T1CALIB\\{name}.RAW"
                     txt_path = f"C:\\T1CALIB\\{name}.TXT"
                     try:
+                        # Check if files exist by trying to get their size (without downloading)
+                        if (calib_dir / f"{name}.RAW").exists() and (
+                            calib_dir / f"{name}.TXT"
+                        ).exists():
+                            print(
+                                f"Calibration image {name} already exists. Skipping download."
+                            )
+                            downloaded += 1
+                            continue
                         raw_bytes = await camera.get_file(raw_path)
                         txt_bytes = await camera.get_file(txt_path)
                         (calib_dir / f"{name}.RAW").write_bytes(raw_bytes)
