@@ -19,11 +19,11 @@ async def main() -> int:
         raw_list = await camera.get_picture_list_raw()
         pictures = await camera.get_picture_list()
 
-        print(f"Vendor: {info['vendor']}")
-        print(f"Product: {info['product']}")
-        print(f"Revision: {info['revision']}")
-        print(f"Serial: {info['serial']}")
-        print(f"Firmware: {info['firmware']}")
+        print(f"Vendor: {info.vendor}")
+        print(f"Product: {info.product}")
+        print(f"Revision: {info.revision}")
+        print(f"Serial: {info.serial}")
+        print(f"Firmware: {info.firmware}")
         print(f"Pictures: {len(pictures)}")
 
         raw_time_map: dict[str, str] = {}
@@ -71,7 +71,9 @@ async def main() -> int:
                 sample.export_flat(calibration_path, flat_path)
                 print(f"Exported flat image: {flat_path}")
             else:
-                print("Calibration file missing: calibration.json (needed for flat export)")
+                print(
+                    "Calibration file missing: calibration.json (needed for flat export)"
+                )
 
         return 0
     finally:

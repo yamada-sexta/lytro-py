@@ -11,7 +11,8 @@ LYTRO_VENDOR_ID = 0x24CF
 LYTRO_PRODUCT_ID = 0x00A1
 
 
-class CameraInfo(TypedDict):
+@dataclass(frozen=True)
+class CameraInfo:
     vendor: str
     product: str
     revision: str
@@ -230,10 +231,18 @@ class LytroDevice(UsbMassStorage):
             .strip()
         )
 
-        return {
-            "vendor": vendor,
-            "product": product,
-            "revision": revision,
-            "serial": serial,
-            "firmware": firmware,
-        }
+        # return {
+        #     "vendor": vendor,
+        #     "product": product,
+        #     "revision": revision,
+        #     "serial": serial,
+        #     "firmware": firmware,
+        # }
+
+        return CameraInfo(
+            vendor=vendor,
+            product=product,
+            revision=revision,
+            serial=serial,
+            firmware=firmware,
+        )
