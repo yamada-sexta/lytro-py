@@ -5,6 +5,7 @@ import usb
 DEFAULT_EP_OUT = 0x02
 DEFAULT_EP_IN = 0x82
 DEFAULT_INTERFACE = 0
+DEFAULT_TIMEOUT_MS = 5000
 
 
 CBW_SIGNATURE = 0x43425355  # "USBC"
@@ -30,6 +31,7 @@ class UsbMassStorage:
         usb.util.claim_interface(self.dev, DEFAULT_INTERFACE)
         self.ep_out, self.ep_in = self._find_endpoints()
         self._tag = 1
+        self.timeout_ms = DEFAULT_TIMEOUT_MS
 
     def _detach_kernel_driver(self) -> None:
         try:
@@ -62,7 +64,9 @@ class UsbMassStorage:
             self._tag = 1
         return tag
 
-    def _send_cbw(self, cdb: bytes, data_len: int, flags: int, lun: int) -> int:
+    def _send_cbw(
+        self, cdb: bytes, data_len: int, flags: int, lun: int, timeout_ms: int
+    ) -> int:
         tag = self._next_tag()
         cdb_padded = cdb.ljust(16, b"\x00")
         cbw = (
@@ -77,11 +81,11 @@ class UsbMassStorage:
             )
             + cdb_padded
         )
-        self.dev.write(self.ep_out, cbw)
+        self.dev.write(self.ep_out, cbw, timeout=timeout_ms)
         return tag
 
-    def _read_csw(self, expected_tag: int) -> None:
-        csw = bytes(self.dev.read(self.ep_in, 13))
+    def _read_csw(self, expected_tag: int, timeout_ms: int) -> None:
+        csw = bytes(self.dev.read(self.ep_in, 13, timeout=timeout_ms))
         signature, tag, residue, status = struct.unpack("<I I I B", csw[:13])
         if signature != CSW_SIGNATURE or tag != expected_tag:
             raise RuntimeError("Invalid CSW received from device")
@@ -90,11 +94,11 @@ class UsbMassStorage:
                 f"Command failed with status {status} (residue {residue})"
             )
 
-    def _read_bulk(self, length: int) -> bytes:
+    def _read_bulk(self, length: int, timeout_ms: int) -> bytes:
         data = bytearray()
         remaining = length
         while remaining > 0:
-            chunk = bytes(self.dev.read(self.ep_in, remaining))
+            chunk = bytes(self.dev.read(self.ep_in, remaining, timeout=timeout_ms))
             data.extend(chunk)
             if len(chunk) < remaining:
                 break
@@ -102,9 +106,14 @@ class UsbMassStorage:
         return bytes(data)
 
     def _command_sync(
-        self, cdb: bytes, data_in_len: int = 0, data_out: bytes | None = None
+        self,
+        cdb: bytes,
+        data_in_len: int = 0,
+        data_out: bytes | None = None,
+        timeout_ms: int | None = None,
     ) -> bytes:
         """Synchronous backend for executing commands to avoid blocking the async event loop."""
+        effective_timeout = self.timeout_ms if timeout_ms is None else timeout_ms
         flags = 0x80 if data_in_len > 0 else 0x00
         if data_out is not None:
             data_len = len(data_out)
@@ -112,22 +121,28 @@ class UsbMassStorage:
         else:
             data_len = data_in_len
 
-        tag = self._send_cbw(cdb, data_len, flags, 0)
+        tag = self._send_cbw(cdb, data_len, flags, 0, effective_timeout)
         data_in = b""
 
         if data_out is not None:
-            self.dev.write(self.ep_out, data_out)
+            self.dev.write(self.ep_out, data_out, timeout=effective_timeout)
         elif data_in_len > 0:
-            data_in = self._read_bulk(data_in_len)
+            data_in = self._read_bulk(data_in_len, effective_timeout)
 
-        self._read_csw(tag)
+        self._read_csw(tag, effective_timeout)
         return data_in
 
     async def command(
-        self, cdb: bytes, data_in_len: int = 0, data_out: bytes | None = None
+        self,
+        cdb: bytes,
+        data_in_len: int = 0,
+        data_out: bytes | None = None,
+        timeout_ms: int | None = None,
     ) -> bytes:
         """Async public interface for sending SCSI commands."""
-        return await asyncio.to_thread(self._command_sync, cdb, data_in_len, data_out)
+        return await asyncio.to_thread(
+            self._command_sync, cdb, data_in_len, data_out, timeout_ms
+        )
 
     def close(self) -> None:
         usb.util.release_interface(self.dev, DEFAULT_INTERFACE)

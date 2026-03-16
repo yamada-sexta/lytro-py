@@ -140,13 +140,15 @@ def export_subaperture_tiled_png(
                 out_w_f,
             )
             if per_view_normalize:
-                view = _tone_map_u16(view)
+                valid = np.any(view > 0, axis=2)
+                view = _tone_map_u16(view, mask=valid)
             y0 = j * out_h_f
             x0 = i * out_w_f
             tiled[y0 : y0 + out_h_f, x0 : x0 + out_w_f] = view
 
     if not per_view_normalize:
-        tiled = _tone_map_u16(tiled)
+        valid = np.any(tiled > 0, axis=2)
+        tiled = _tone_map_u16(tiled, mask=valid)
     if apply_aspect_correction:
         pitch_y = _mean_subgrid_spacing(horizontal)
         pitch_x = _mean_subgrid_spacing(vertical)
@@ -330,15 +332,22 @@ def _apply_color_correction(rgb: np.ndarray, meta: Metadata) -> np.ndarray:
         return rgb
 
 
-def _tone_map_u16(rgb: np.ndarray) -> np.ndarray:
+def _tone_map_u16(rgb: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
     if rgb.size == 0:
         return rgb
     # Use a luminance-based percentile stretch for a gentle normalization.
     rgb_f = rgb.astype(np.float32)
     lum = 0.2126 * rgb_f[..., 0] + 0.7152 * rgb_f[..., 1] + 0.0722 * rgb_f[..., 2]
-    sample = lum[::4, ::4].reshape(-1)
+    if mask is not None:
+        if mask.shape != lum.shape:
+            raise ValueError("mask must match the spatial shape of rgb")
+        sample = lum[mask]
+    else:
+        sample = lum[::4, ::4].reshape(-1)
+        if sample.size == 0:
+            sample = lum.reshape(-1)
     if sample.size == 0:
-        sample = lum.reshape(-1)
+        return rgb
     lo = float(np.percentile(sample, 1.0))
     hi = float(np.percentile(sample, 99.5))
     if hi <= lo + 1.0:

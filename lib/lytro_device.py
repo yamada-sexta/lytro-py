@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TypedDict
+import re
 
 import usb
 
@@ -177,18 +178,122 @@ class LytroDevice(UsbMassStorage):
                 pos += line_len
             return entries
 
+        dir_pattern = re.compile(r"^[0-9]{3}PHOTO$", re.IGNORECASE)
+        file_pattern = re.compile(r"^(IMG_|MOD_)", re.IGNORECASE)
+
+        def is_valid_entry(entry: PictureEntry) -> bool:
+            if entry.dir_id <= 0 or entry.file_id < 0:
+                return False
+            if not entry.dir_base or not entry.file_base:
+                return False
+            if dir_pattern.match(entry.dir_base) is None:
+                return False
+            if file_pattern.match(entry.file_base) is None:
+                return False
+            return True
+
         # Some devices appear to store entry_offset in bytes instead of 8-byte units.
         pos_a = entry_offset * 8 + 12
         pos_b = entry_offset + 12
         entries_a = parse_at(pos_a) if pos_a < len(data) else []
         entries_b = parse_at(pos_b) if pos_b < len(data) else []
-        return entries_a if len(entries_a) >= len(entries_b) else entries_b
+        candidates = [entries_a, entries_b]
 
-    async def get_picture_list_raw(self) -> bytes:
+        # Heuristic alignment scan: try all offsets within a line to find the most valid entries.
+        best_entries = entries_a if len(entries_a) >= len(entries_b) else entries_b
+        best_valid = sum(1 for e in best_entries if is_valid_entry(e))
+        for offset in range(line_len):
+            pos = 12 + offset
+            if pos >= len(data):
+                continue
+            trial = parse_at(pos)
+            valid = sum(1 for e in trial if is_valid_entry(e))
+            if valid > best_valid:
+                best_valid = valid
+                best_entries = trial
+        # Filter to valid entries only; if that empties the list, fall back to raw.
+        filtered = [e for e in best_entries if is_valid_entry(e)]
+        return filtered if filtered else best_entries
+
+    @staticmethod
+    def _debug_picture_list(data: bytes) -> dict:
+        if len(data) < 12:
+            return {"error": "data too short"}
+        line_len = int.from_bytes(data[4:8], "little", signed=False)
+        entry_offset = int.from_bytes(data[8:12], "little", signed=False)
+        if line_len <= 0:
+            return {"error": "invalid line_len"}
+
+        dir_pattern = re.compile(r"^[0-9]{3}PHOTO$", re.IGNORECASE)
+        file_pattern = re.compile(r"^(IMG_|MOD_)", re.IGNORECASE)
+
+        def is_valid_entry(entry: PictureEntry) -> bool:
+            if entry.dir_id <= 0 or entry.file_id < 0:
+                return False
+            if not entry.dir_base or not entry.file_base:
+                return False
+            if dir_pattern.match(entry.dir_base) is None:
+                return False
+            if file_pattern.match(entry.file_base) is None:
+                return False
+            return True
+
+        def parse_at(pos: int) -> list[PictureEntry]:
+            entries: list[PictureEntry] = []
+            while pos + line_len <= len(data):
+                line = data[pos : pos + line_len]
+                dir_base = LytroDevice._decode_c_string(line[0:8])
+                file_base = LytroDevice._decode_c_string(line[8:16])
+                dir_id = int.from_bytes(line[16:20], "little", signed=False)
+                file_id = int.from_bytes(line[20:24], "little", signed=False)
+                sha1_hex = LytroDevice._parse_sha1_hex(line[53:93])
+                path = LytroDevice._build_picture_path(dir_base, dir_id)
+                basename = LytroDevice._build_picture_basename(file_base, file_id)
+                entries.append(
+                    PictureEntry(
+                        dir_base=dir_base,
+                        file_base=file_base,
+                        dir_id=dir_id,
+                        file_id=file_id,
+                        sha1_hex=sha1_hex,
+                        captured_at=None,
+                        path=path,
+                        basename=basename,
+                    )
+                )
+                pos += line_len
+            return entries
+
+        pos_a = entry_offset * 8 + 12
+        pos_b = entry_offset + 12
+        entries_a = parse_at(pos_a) if pos_a < len(data) else []
+        entries_b = parse_at(pos_b) if pos_b < len(data) else []
+        scan = []
+        for offset in range(min(line_len, 256)):
+            pos = 12 + offset
+            if pos >= len(data):
+                break
+            trial = parse_at(pos)
+            valid = sum(1 for e in trial if is_valid_entry(e))
+            scan.append((offset, len(trial), valid))
+        scan_sorted = sorted(scan, key=lambda x: (x[2], x[1]), reverse=True)[:5]
+        return {
+            "data_len": len(data),
+            "line_len": line_len,
+            "entry_offset": entry_offset,
+            "pos_a": pos_a,
+            "pos_b": pos_b,
+            "entries_a": len(entries_a),
+            "entries_b": len(entries_b),
+            "top_offsets": scan_sorted,
+        }
+
+    async def get_picture_list_raw(self, timeout_ms: int | None = 15000) -> bytes:
         await self.command(
             bytes(
                 [0xC2, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-            )
+            ),
+            timeout_ms=timeout_ms,
         )
         return await self.download_data()
 

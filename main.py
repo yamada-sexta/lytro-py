@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 from typing import Any
+import os
 
 from tap import Tap
 from tqdm import tqdm
@@ -17,6 +18,37 @@ from lib.lightfield_pipeline import (
     process_directory,
 )
 from lib.lytro_device import LytroDevice, PictureEntry
+
+
+def _find_device_mount(mount_path: Path | None) -> Path | None:
+    if mount_path is not None:
+        return mount_path if mount_path.exists() else None
+    roots = [Path("/media"), Path("/run/media"), Path("/mnt"), Path("/Volumes")]
+    for root in roots:
+        if not root.exists():
+            continue
+        if (root / "DCIM").exists():
+            return root
+        for entry in root.iterdir():
+            if entry.is_dir() and (entry / "DCIM").exists():
+                return entry
+    return None
+
+
+def _print_tree(root: Path, max_depth: int | None = None) -> None:
+    root = root.resolve()
+    print(root)
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel = Path(dirpath).relative_to(root)
+        depth = len(rel.parts)
+        if max_depth is not None and depth >= max_depth:
+            dirnames[:] = []
+            continue
+        indent = "  " * depth
+        for name in sorted(dirnames):
+            print(f"{indent}{name}/")
+        for name in sorted(filenames):
+            print(f"{indent}{name}")
 
 
 class CalibrateArgs(Tap):
@@ -47,7 +79,19 @@ class ListRawArgs(Tap):
 
 
 class ListDeviceArgs(Tap):
-    pass
+    debug: bool = False  # Print list parsing diagnostics
+
+    def configure(self) -> None:
+        self.add_argument("--debug", action="store_true", dest="debug", default=False)
+
+
+class ListDeviceTreeArgs(Tap):
+    mount_path: Path | None = None  # Mounted path for the device (if known)
+    max_depth: int | None = None  # Optional max depth for tree listing
+
+    def configure(self) -> None:
+        self.add_argument("--mount", dest="mount_path", type=Path, default=None)
+        self.add_argument("--max-depth", dest="max_depth", type=int, default=None)
 
 
 class ExportRawsArgs(Tap):
@@ -180,6 +224,11 @@ class Args(Tap):
         self.add_subparser("process", ProcessArgs, help="process local RAWs")
         self.add_subparser("list-raw", ListRawArgs, help="list local .RAW files")
         self.add_subparser("list-device", ListDeviceArgs, help="list RAWs on device")
+        self.add_subparser(
+            "list-device-tree",
+            ListDeviceTreeArgs,
+            help="list device contents as a directory tree (mounted volume)",
+        )
         self.add_subparser("export-raws", ExportRawsArgs, help="export RAWs from device")
         self.add_subparser("process-device", ProcessDeviceArgs, help="process RAWs from device")
         self.add_subparser(
@@ -235,6 +284,8 @@ def _get_command_name(args: Any) -> str | None:
         return "list-raw"
     if isinstance(args, ListDeviceArgs):
         return "list-device"
+    if isinstance(args, ListDeviceTreeArgs):
+        return "list-device-tree"
     if isinstance(args, ExportRawsArgs):
         return "export-raws"
     if isinstance(args, ProcessDeviceArgs):
@@ -397,13 +448,30 @@ async def main() -> int:
             return 1
         try:
             print("Camera found. Fetching picture list...")
-            pictures = await _list_device(camera)
+            raw_list = await camera.get_picture_list_raw()
+            if bool(getattr(args, "debug")):
+                debug = LytroDevice._debug_picture_list(raw_list)
+                print(f"List debug: {debug}")
+            pictures = LytroDevice._parse_picture_list(raw_list)
             for pic in pictures:
                 print(f"{pic.basename} -> {pic.raw_path}")
             print(f"Total: {len(pictures)}")
             return 0
         finally:
             camera.close()
+
+    if command == "list-device-tree":
+        mount_path = getattr(args, "mount_path")
+        max_depth = getattr(args, "max_depth")
+        root = _find_device_mount(mount_path)
+        if root is None:
+            print(
+                "Device volume not found. Provide --mount /path/to/volume after mounting the camera."
+            )
+            return 1
+        print(f"Listing device tree at: {root}")
+        _print_tree(root, max_depth=max_depth)
+        return 0
 
     if command == "export-raws":
         output_dir = Path(getattr(args, "output_dir"))
