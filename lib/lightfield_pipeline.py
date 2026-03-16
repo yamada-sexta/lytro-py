@@ -33,6 +33,8 @@ def export_flat_png(
     metadata_bytes: bytes,
     calibration: CalibrationData,
     output_path: str | Path,
+    apply_white_balance: bool = False,
+    apply_color_correction: bool = True,
 ) -> Path:
     meta = Metadata.from_bytes(metadata_bytes)
     info = meta.image_info()
@@ -40,7 +42,10 @@ def export_flat_png(
         raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
     )
     lf = LightfieldImage.from_raw(raw, calibration)
-    rgb_u16 = _apply_white_balance(lf.data, _extract_white_balance(meta))
+    wb = _extract_white_balance(meta) if apply_white_balance else None
+    rgb_u16 = _apply_white_balance(lf.data, wb)
+    if apply_color_correction:
+        rgb_u16 = _apply_color_correction(rgb_u16, meta)
     rgb_u16 = _tone_map_u16(rgb_u16)
     bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
@@ -53,13 +58,18 @@ def export_raw_png(
     raw_bytes: bytes,
     metadata_bytes: bytes,
     output_path: str | Path,
+    apply_white_balance: bool = False,
+    apply_color_correction: bool = True,
 ) -> Path:
     meta = Metadata.from_bytes(metadata_bytes)
     info = meta.image_info()
     raw = RawImage.from_bytes(
         raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
     )
-    rgb_u16 = _normalize_raw_rgb(raw.data, info, _extract_white_balance(meta))
+    wb = _extract_white_balance(meta) if apply_white_balance else None
+    rgb_u16 = _normalize_raw_rgb(raw.data, info, wb)
+    if apply_color_correction:
+        rgb_u16 = _apply_color_correction(rgb_u16, meta)
     rgb_u16 = _tone_map_u16(rgb_u16)
     bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
@@ -74,6 +84,10 @@ def export_subaperture_tiled_png(
     calibration: CalibrationData,
     output_path: str | Path,
     grid_size: int = 9,
+    apply_white_balance: bool = False,
+    apply_color_correction: bool = True,
+    per_view_normalize: bool = True,
+    apply_aspect_correction: bool = True,
 ) -> Path:
     if grid_size < 1 or grid_size % 2 == 0:
         raise ValueError("grid_size must be a positive odd integer")
@@ -83,7 +97,10 @@ def export_subaperture_tiled_png(
     raw = RawImage.from_bytes(
         raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
     )
-    rgb_u16 = _normalize_raw_rgb(raw.data, info, _extract_white_balance(meta))
+    wb = _extract_white_balance(meta) if apply_white_balance else None
+    rgb_u16 = _normalize_raw_rgb(raw.data, info, wb)
+    if apply_color_correction:
+        rgb_u16 = _apply_color_correction(rgb_u16, meta)
 
     tmp = _apply_calibration(rgb_u16, calibration)
     horizontal = calibration.array.grid.get_horizontal_lines()
@@ -93,6 +110,8 @@ def export_subaperture_tiled_png(
     col_index, out_w = _build_subgrid_columns(vertical)
     if out_h == 0 or out_w == 0:
         raise RuntimeError("Calibration grid is empty; cannot export subaperture views.")
+    out_h_f = out_h
+    out_w_f = out_w
 
     pitch_y = _mean_subgrid_spacing(horizontal)
     pitch_x = _mean_subgrid_spacing(vertical)
@@ -102,8 +121,8 @@ def export_subaperture_tiled_png(
     offsets_x = np.linspace(-max_dx, max_dx, grid_size)
     offsets_y = np.linspace(-max_dy, max_dy, grid_size)
 
-    tile_h = out_h * grid_size
-    tile_w = out_w * grid_size
+    tile_h = out_h_f * grid_size
+    tile_w = out_w_f * grid_size
     tiled = np.zeros((tile_h, tile_w, 3), dtype=np.uint16)
 
     for j, dy in enumerate(offsets_y):
@@ -116,14 +135,25 @@ def export_subaperture_tiled_png(
                 col_index,
                 dx,
                 dy,
-                out_h,
-                out_w,
+                out_h_f,
+                out_w_f,
             )
-            y0 = j * out_h
-            x0 = i * out_w
-            tiled[y0 : y0 + out_h, x0 : x0 + out_w] = view
+            if per_view_normalize:
+                view = _tone_map_u16(view)
+            y0 = j * out_h_f
+            x0 = i * out_w_f
+            tiled[y0 : y0 + out_h_f, x0 : x0 + out_w_f] = view
 
-    tiled = _tone_map_u16(tiled)
+    if not per_view_normalize:
+        tiled = _tone_map_u16(tiled)
+    if apply_aspect_correction:
+        pitch_y = _mean_subgrid_spacing(horizontal)
+        pitch_x = _mean_subgrid_spacing(vertical)
+        if pitch_x > 0 and pitch_y > 0:
+            aspect = pitch_x / pitch_y
+            if abs(aspect - 1.0) > 0.01:
+                new_w = max(1, int(round(tiled.shape[1] * aspect)))
+                tiled = cv2.resize(tiled, (new_w, tiled.shape[0]), interpolation=cv2.INTER_AREA)
     bgr = cv2.cvtColor(tiled, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
     if not cv2.imwrite(str(out_path), bgr):
@@ -261,6 +291,27 @@ def _apply_white_balance(rgb: np.ndarray, gains: np.ndarray | None) -> np.ndarra
     rgb_f *= gains.reshape((1, 1, 3))
     rgb_f = np.clip(rgb_f, 0.0, 65535.0)
     return rgb_f.astype(np.uint16)
+
+
+def _apply_color_correction(rgb: np.ndarray, meta: Metadata) -> np.ndarray:
+    try:
+        color = meta.raw_json["master"]["picture"]["frameArray"][0]["frame"]["metadata"][
+            "image"
+        ]["color"]
+        ccm = color.get("ccmRgbToSrgbArray")
+        gamma = float(color.get("gamma", 1.0))
+        if not ccm or len(ccm) != 9:
+            return rgb
+        mat = np.array(ccm, dtype=np.float32).reshape(3, 3)
+        rgb_f = rgb.astype(np.float32) / 65535.0
+        rgb_lin = rgb_f.reshape(-1, 3) @ mat.T
+        rgb_lin = np.clip(rgb_lin, 0.0, 1.0)
+        if gamma > 0:
+            rgb_lin = np.power(rgb_lin, gamma)
+        rgb_out = (rgb_lin.reshape(rgb_f.shape) * 65535.0).astype(np.uint16)
+        return rgb_out
+    except Exception:
+        return rgb
 
 
 def _tone_map_u16(rgb: np.ndarray) -> np.ndarray:

@@ -85,6 +85,9 @@ class ExportSubapertureArgs(Tap):
     output_path: Path  # Local PNG output path
     calibration_path: Path = Path("calibration.json")  # Calibration file
     grid: int = 9  # Odd grid size for subaperture views
+    white_balance: bool = False  # Apply metadata white balance
+    no_per_view_normalize: bool = False  # Disable per-view normalization
+    no_aspect_correction: bool = False  # Disable aspect correction stretch
 
     def configure(self) -> None:
         self.add_argument("raw_path", type=Path)
@@ -97,6 +100,27 @@ class ExportSubapertureArgs(Tap):
             type=Path,
         )
         self.add_argument("--grid", type=int, default=9)
+        self.add_argument(
+            "--white-balance", action="store_true", dest="white_balance", default=False
+        )
+        self.add_argument(
+            "--no-per-view-normalize",
+            action="store_true",
+            dest="no_per_view_normalize",
+            default=False,
+        )
+        self.add_argument(
+            "--no-color-correction",
+            action="store_true",
+            dest="no_color_correction",
+            default=False,
+        )
+        self.add_argument(
+            "--no-aspect-correction",
+            action="store_true",
+            dest="no_aspect_correction",
+            default=False,
+        )
 
 
 class ExportSubapertureDeviceArgs(Tap):
@@ -105,6 +129,9 @@ class ExportSubapertureDeviceArgs(Tap):
     calibration_path: Path = Path("calibration.json")  # Calibration file
     metadata_path: str | None = None  # Optional device TXT path
     grid: int = 9  # Odd grid size for subaperture views
+    white_balance: bool = False  # Apply metadata white balance
+    no_per_view_normalize: bool = False  # Disable per-view normalization
+    no_aspect_correction: bool = False  # Disable aspect correction stretch
 
     def configure(self) -> None:
         self.add_argument("device_raw_path")
@@ -117,6 +144,27 @@ class ExportSubapertureDeviceArgs(Tap):
         )
         self.add_argument("--metadata-path", dest="metadata_path", default=None)
         self.add_argument("--grid", type=int, default=9)
+        self.add_argument(
+            "--white-balance", action="store_true", dest="white_balance", default=False
+        )
+        self.add_argument(
+            "--no-per-view-normalize",
+            action="store_true",
+            dest="no_per_view_normalize",
+            default=False,
+        )
+        self.add_argument(
+            "--no-color-correction",
+            action="store_true",
+            dest="no_color_correction",
+            default=False,
+        )
+        self.add_argument(
+            "--no-aspect-correction",
+            action="store_true",
+            dest="no_aspect_correction",
+            default=False,
+        )
 
 
 class Args(Tap):
@@ -426,6 +474,10 @@ async def main() -> int:
         output_path = Path(getattr(args, "output_path"))
         calibration_path = Path(getattr(args, "calibration_path"))
         grid = int(getattr(args, "grid"))
+        apply_wb = bool(getattr(args, "white_balance"))
+        per_view_normalize = not bool(getattr(args, "no_per_view_normalize"))
+        apply_ccm = not bool(getattr(args, "no_color_correction"))
+        apply_aspect = not bool(getattr(args, "no_aspect_correction"))
         calibration = load_calibration(calibration_path)
         export_subaperture_tiled_png(
             raw_path.read_bytes(),
@@ -433,6 +485,10 @@ async def main() -> int:
             calibration,
             output_path,
             grid_size=grid,
+            apply_white_balance=apply_wb,
+            apply_color_correction=apply_ccm,
+            per_view_normalize=per_view_normalize,
+            apply_aspect_correction=apply_aspect,
         )
         print(f"Wrote PNG: {output_path}")
         return 0
@@ -443,6 +499,10 @@ async def main() -> int:
         calibration_path = Path(getattr(args, "calibration_path"))
         metadata_path = getattr(args, "metadata_path")
         grid = int(getattr(args, "grid"))
+        apply_wb = bool(getattr(args, "white_balance"))
+        per_view_normalize = not bool(getattr(args, "no_per_view_normalize"))
+        apply_ccm = not bool(getattr(args, "no_color_correction"))
+        apply_aspect = not bool(getattr(args, "no_aspect_correction"))
         calibration = load_calibration(calibration_path)
         camera = LytroDevice.find()
         if camera is None:
@@ -462,6 +522,10 @@ async def main() -> int:
                 calibration,
                 output_path,
                 grid_size=grid,
+                apply_white_balance=apply_wb,
+                apply_color_correction=apply_ccm,
+                per_view_normalize=per_view_normalize,
+                apply_aspect_correction=apply_aspect,
             )
             print(f"Wrote PNG: {output_path}")
             return 0

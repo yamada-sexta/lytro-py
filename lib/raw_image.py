@@ -49,7 +49,7 @@ class RawImage:
     def _bayer_pattern(
         mosaic_tile: str | None, mosaic_upper_left: str | None
     ) -> str:
-        if not mosaic_tile or not mosaic_upper_left:
+        if not mosaic_tile:
             return "BGGR"
         tile_rows = [row.strip() for row in mosaic_tile.lower().split(":") if row.strip()]
         if len(tile_rows) != 2:
@@ -60,23 +60,8 @@ class RawImage:
             if len(cols) != 2:
                 return "BGGR"
             tile.append(cols)
-        upper = mosaic_upper_left.lower().strip()
-        pos = None
-        for r in range(2):
-            for c in range(2):
-                if tile[r][c] == upper:
-                    pos = (r, c)
-                    break
-            if pos is not None:
-                break
-        if pos is None:
-            return "BGGR"
-        shift_r, shift_c = pos
-        if shift_r or shift_c:
-            tile = [
-                [tile[(r + shift_r) % 2][(c + shift_c) % 2] for c in range(2)]
-                for r in range(2)
-            ]
+        # Prefer the explicit tile ordering. Some metadata sets upperLeftPixel in a
+        # different reference frame; using it here can swap channels.
         # Map tile to standard pattern string.
         tl, tr = tile[0]
         bl, br = tile[1]
