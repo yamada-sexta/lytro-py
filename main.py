@@ -76,7 +76,7 @@ class ExportRawPngDeviceArgs(Tap):
     def configure(self) -> None:
         self.add_argument("device_raw_path")
         self.add_argument("output_path", type=Path)
-        self.add_argument("--metadata-path", dest="metadata_path")
+        self.add_argument("--metadata-path", dest="metadata_path", default=None)
 
 
 class ExportSubapertureArgs(Tap):
@@ -115,7 +115,7 @@ class ExportSubapertureDeviceArgs(Tap):
             default=Path("calibration.json"),
             type=Path,
         )
-        self.add_argument("--metadata-path", dest="metadata_path")
+        self.add_argument("--metadata-path", dest="metadata_path", default=None)
         self.add_argument("--grid", type=int, default=9)
 
 
