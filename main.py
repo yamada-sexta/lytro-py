@@ -1,38 +1,117 @@
-from tqdm import tqdm
+from __future__ import annotations
+
 import asyncio
 from pathlib import Path
-import sys
+from typing import Any
 
-from lib.captured_picture import CapturedPicture
-from lib.lytro_device import LytroDevice
+from tap import Tap
+from tqdm import tqdm
+
 from lib.calibration.pipeline import calibrate_directory
-from lib.lightfield_pipeline import process_directory
+from lib.captured_picture import CapturedPicture
+from lib.lightfield_pipeline import (
+    export_flat_png,
+    export_raw_png,
+    load_calibration,
+    process_directory,
+)
+from lib.lytro_device import LytroDevice, PictureEntry
 
 
-async def main() -> int:
-    if len(sys.argv) >= 3 and sys.argv[1] == "calibrate":
-        input_dir = Path(sys.argv[2])
-        output_path = (
-            Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
-        )
-        calibrate_directory(input_dir, output_path)
-        print(f"Wrote calibration file: {output_path}")
-        return 0
-    if len(sys.argv) >= 3 and sys.argv[1] == "process":
-        input_dir = Path(sys.argv[2])
-        calibration_path = (
-            Path(sys.argv[3]) if len(sys.argv) > 3 else Path("calibration.json")
-        )
-        outputs = process_directory(input_dir, calibration_path)
-        print(f"Generated {len(outputs)} flat images")
-        return 0
+class CalibrateArgs(Tap):
+    input_dir: Path  # Directory with calibration .RAW/.TXT files
+    output_path: Path = Path("calibration.json")  # Output calibration file
+
+    def configure(self) -> None:
+        self.add_argument("input_dir", type=Path)
+        self.add_argument("output_path", nargs="?", default=Path("calibration.json"), type=Path)
+
+
+class ProcessArgs(Tap):
+    input_dir: Path  # Directory with .RAW/.TXT files
+    calibration_path: Path = Path("calibration.json")  # Calibration file
+    raw_png: bool = False  # Also write demosaiced raw PNGs
+
+    def configure(self) -> None:
+        self.add_argument("input_dir", type=Path)
+        self.add_argument("calibration_path", nargs="?", default=Path("calibration.json"), type=Path)
+        self.add_argument("--raw-png", action="store_true", dest="raw_png")
+
+
+class ListRawArgs(Tap):
+    input_dir: Path  # Directory to search for .RAW files
+
+    def configure(self) -> None:
+        self.add_argument("input_dir", type=Path)
+
+
+class ListDeviceArgs(Tap):
+    pass
+
+
+class ExportRawsArgs(Tap):
+    output_dir: Path  # Directory to write exported RAWs
+
+    def configure(self) -> None:
+        self.add_argument("output_dir", type=Path)
+
+
+class ProcessDeviceArgs(Tap):
+    output_dir: Path  # Directory to write processed PNGs
+    calibration_path: Path = Path("calibration.json")  # Calibration file
+    raw_png: bool = False  # Also write demosaiced raw PNGs
+
+    def configure(self) -> None:
+        self.add_argument("output_dir", type=Path)
+        self.add_argument("calibration_path", nargs="?", default=Path("calibration.json"), type=Path)
+        self.add_argument("--raw-png", action="store_true", dest="raw_png")
+
+
+class Args(Tap):
+    command: str | None = None
+
+    def configure(self) -> None:
+        self.add_subparsers(dest="command", help="sub-command help")
+        self.add_subparser("calibrate", CalibrateArgs, help="generate calibration.json")
+        self.add_subparser("process", ProcessArgs, help="process local RAWs")
+        self.add_subparser("list-raw", ListRawArgs, help="list local .RAW files")
+        self.add_subparser("list-device", ListDeviceArgs, help="list RAWs on device")
+        self.add_subparser("export-raws", ExportRawsArgs, help="export RAWs from device")
+        self.add_subparser("process-device", ProcessDeviceArgs, help="process RAWs from device")
+
+
+async def _list_device(camera: LytroDevice) -> list[PictureEntry]:
+    await camera.wait_ready()
+    return await camera.get_picture_list()
+
+
+def _get_command_name(args: Any) -> str | None:
+    command = getattr(args, "command", None)
+    if command:
+        return command
+    if isinstance(args, CalibrateArgs):
+        return "calibrate"
+    if isinstance(args, ProcessArgs):
+        return "process"
+    if isinstance(args, ListRawArgs):
+        return "list-raw"
+    if isinstance(args, ListDeviceArgs):
+        return "list-device"
+    if isinstance(args, ExportRawsArgs):
+        return "export-raws"
+    if isinstance(args, ProcessDeviceArgs):
+        return "process-device"
+    return None
+
+
+async def _run_default() -> int:
     print("No command specified...")
     camera = LytroDevice.find()
     if camera is None:
         print("Lytro camera not found.")
         return 1
 
-    pictures = []
+    pictures: list[PictureEntry] = []
     raw_list = b""
     try:
         print("Camera found. Gathering information...")
@@ -90,22 +169,17 @@ async def main() -> int:
                 print(f"Thumbnail decode failed: {exc}")
             calibration_path = Path("calibration.json")
             if not calibration_path.exists():
-                print(
-                    "Calibration file missing: calibration.json. Generating it now..."
-                )
+                print("Calibration file missing: calibration.json. Generating it now...")
                 calib_dir = output_dir / "calibration"
                 calib_dir.mkdir(parents=True, exist_ok=True)
                 # Download calibration images from camera (C:\\T1CALIB\\MOD_0000..0061)
                 downloaded = 0
                 skipped = 0
-                for i in tqdm(
-                    range(62), desc="Downloading calibration images", unit="image"
-                ):
+                for i in tqdm(range(62), desc="Downloading calibration images", unit="image"):
                     name = f"MOD_{i:04d}"
                     raw_path = f"C:\\T1CALIB\\{name}.RAW"
                     txt_path = f"C:\\T1CALIB\\{name}.TXT"
                     try:
-                        # Check if files exist by trying to get their size (without downloading)
                         if (calib_dir / f"{name}.RAW").exists() and (
                             calib_dir / f"{name}.TXT"
                         ).exists():
@@ -122,9 +196,7 @@ async def main() -> int:
                     except Exception as exc:
                         print(f"Skipping calibration image {name}: {exc}")
                         skipped += 1
-                print(
-                    f"Downloaded calibration images: {downloaded}, skipped: {skipped}"
-                )
+                print(f"Downloaded calibration images: {downloaded}, skipped: {skipped}")
                 calibrate_directory(calib_dir, calibration_path)
                 print(f"Wrote calibration file: {calibration_path}")
 
@@ -136,13 +208,105 @@ async def main() -> int:
                 sample.save_color_thumbnail(calibration_path, color_thumb_path)
                 print(f"Exported color thumbnail image: {color_thumb_path}")
             else:
-                print(
-                    "Calibration still missing after generation. Skipping flat export."
-                )
+                print("Calibration still missing after generation. Skipping flat export.")
 
         return 0
     finally:
         camera.close()
+
+
+async def main() -> int:
+    args = Args().parse_args()
+    command = _get_command_name(args)
+
+    if command == "calibrate":
+        input_dir = Path(getattr(args, "input_dir"))
+        output_path = Path(getattr(args, "output_path"))
+        calibrate_directory(input_dir, output_path)
+        print(f"Wrote calibration file: {output_path}")
+        return 0
+
+    if command == "process":
+        input_dir = Path(getattr(args, "input_dir"))
+        calibration_path = Path(getattr(args, "calibration_path"))
+        write_raw_png = bool(getattr(args, "raw_png"))
+        outputs = process_directory(
+            input_dir, calibration_path, write_raw_png=write_raw_png
+        )
+        print(f"Generated {len(outputs)} images")
+        return 0
+
+    if command == "list-raw":
+        input_dir = Path(getattr(args, "input_dir"))
+        raw_files = sorted(input_dir.glob("*.RAW"))
+        if not raw_files:
+            print(f"No .RAW files found in {input_dir}")
+            return 0
+        for raw_path in raw_files:
+            print(raw_path)
+        return 0
+
+    if command == "list-device":
+        camera = LytroDevice.find()
+        if camera is None:
+            print("Lytro camera not found.")
+            return 1
+        try:
+            print("Camera found. Fetching picture list...")
+            pictures = await _list_device(camera)
+            for pic in pictures:
+                print(f"{pic.basename} -> {pic.raw_path}")
+            print(f"Total: {len(pictures)}")
+            return 0
+        finally:
+            camera.close()
+
+    if command == "export-raws":
+        output_dir = Path(getattr(args, "output_dir"))
+        camera = LytroDevice.find()
+        if camera is None:
+            print("Lytro camera not found.")
+            return 1
+        try:
+            print("Camera found. Downloading RAWs...")
+            pictures = await _list_device(camera)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            for pic in tqdm(pictures, desc="Exporting RAWs", unit="image"):
+                captured = await CapturedPicture.create(camera, pic)
+                captured.export_all(output_dir)
+            print(f"Exported {len(pictures)} RAWs to {output_dir}")
+            return 0
+        finally:
+            camera.close()
+
+    if command == "process-device":
+        output_dir = Path(getattr(args, "output_dir"))
+        calibration_path = Path(getattr(args, "calibration_path"))
+        write_raw_png = bool(getattr(args, "raw_png"))
+        camera = LytroDevice.find()
+        if camera is None:
+            print("Lytro camera not found.")
+            return 1
+        try:
+            print("Camera found. Downloading and processing images...")
+            pictures = await _list_device(camera)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            calibration = load_calibration(calibration_path)
+            for pic in tqdm(pictures, desc="Processing images", unit="image"):
+                metadata_bytes = await camera.get_file(pic.metadata_path)
+                raw_bytes = await camera.get_file(pic.raw_path)
+                base = pic.basename
+                flat_path = output_dir / f"{base}-flat.png"
+                export_flat_png(raw_bytes, metadata_bytes, calibration, flat_path)
+                if write_raw_png:
+                    raw_path = output_dir / f"{base}-raw.png"
+                    export_raw_png(raw_bytes, metadata_bytes, raw_path)
+            print(f"Generated {len(pictures)} images in {output_dir}")
+            return 0
+        finally:
+            camera.close()
+
+    return await _run_default()
 
 
 if __name__ == "__main__":
