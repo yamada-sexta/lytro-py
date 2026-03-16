@@ -88,6 +88,7 @@ def export_subaperture_tiled_png(
     apply_color_correction: bool = True,
     per_view_normalize: bool = True,
     apply_aspect_correction: bool = True,
+    offset_scale: float = 0.18,
 ) -> Path:
     if grid_size < 1 or grid_size % 2 == 0:
         raise ValueError("grid_size must be a positive odd integer")
@@ -115,8 +116,8 @@ def export_subaperture_tiled_png(
 
     pitch_y = _mean_subgrid_spacing(horizontal)
     pitch_x = _mean_subgrid_spacing(vertical)
-    max_dx = 0.45 * pitch_x
-    max_dy = 0.45 * pitch_y
+    max_dx = offset_scale * pitch_x
+    max_dy = offset_scale * pitch_y
 
     offsets_x = np.linspace(-max_dx, max_dx, grid_size)
     offsets_y = np.linspace(-max_dy, max_dy, grid_size)
@@ -227,8 +228,8 @@ def _sample_subaperture(
     for v_idx, vline in enumerate(vertical):
         for h_idx, hline in enumerate(horizontal):
             if hline.subgrid == vline.subgrid:
-                src_x = int(round(vline.position + dx))
-                src_y = int(round(hline.position + dy))
+                src_x = vline.position + dx
+                src_y = hline.position + dy
                 out_x = row_index[h_idx]
                 out_y = col_index[v_idx]
                 if (
@@ -237,8 +238,23 @@ def _sample_subaperture(
                     and 0 <= out_x < out_h
                     and 0 <= out_y < out_w
                 ):
-                    view[out_x, out_y] = tmp[src_y, src_x]
+                    view[out_x, out_y] = _sample_bilinear(tmp, src_x, src_y)
     return view
+
+
+def _sample_bilinear(img: np.ndarray, x: float, y: float) -> np.ndarray:
+    x0 = int(np.floor(x))
+    y0 = int(np.floor(y))
+    x1 = min(x0 + 1, img.shape[1] - 1)
+    y1 = min(y0 + 1, img.shape[0] - 1)
+    if x0 < 0 or y0 < 0 or x0 >= img.shape[1] or y0 >= img.shape[0]:
+        return np.array([0, 0, 0], dtype=np.uint16)
+    wx = x - x0
+    wy = y - y0
+    top = (1.0 - wx) * img[y0, x0] + wx * img[y0, x1]
+    bot = (1.0 - wx) * img[y1, x0] + wx * img[y1, x1]
+    out = (1.0 - wy) * top + wy * bot
+    return np.clip(out, 0.0, 65535.0).astype(np.uint16)
 
 
 def _build_subgrid_rows(horizontal) -> tuple[list[int], int]:

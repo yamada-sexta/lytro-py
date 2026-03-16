@@ -88,6 +88,7 @@ class ExportSubapertureArgs(Tap):
     white_balance: bool = False  # Apply metadata white balance
     no_per_view_normalize: bool = False  # Disable per-view normalization
     no_aspect_correction: bool = False  # Disable aspect correction stretch
+    offset_scale: float = 0.18  # Subaperture offset as fraction of microlens pitch
 
     def configure(self) -> None:
         self.add_argument("raw_path", type=Path)
@@ -121,6 +122,7 @@ class ExportSubapertureArgs(Tap):
             dest="no_aspect_correction",
             default=False,
         )
+        self.add_argument("--offset-scale", type=float, default=0.18)
 
 
 class ExportSubapertureDeviceArgs(Tap):
@@ -132,6 +134,7 @@ class ExportSubapertureDeviceArgs(Tap):
     white_balance: bool = False  # Apply metadata white balance
     no_per_view_normalize: bool = False  # Disable per-view normalization
     no_aspect_correction: bool = False  # Disable aspect correction stretch
+    offset_scale: float = 0.18  # Subaperture offset as fraction of microlens pitch
 
     def configure(self) -> None:
         self.add_argument("device_raw_path")
@@ -165,6 +168,7 @@ class ExportSubapertureDeviceArgs(Tap):
             dest="no_aspect_correction",
             default=False,
         )
+        self.add_argument("--offset-scale", type=float, default=0.18)
 
 
 class Args(Tap):
@@ -478,6 +482,7 @@ async def main() -> int:
         per_view_normalize = not bool(getattr(args, "no_per_view_normalize"))
         apply_ccm = not bool(getattr(args, "no_color_correction"))
         apply_aspect = not bool(getattr(args, "no_aspect_correction"))
+        offset_scale = float(getattr(args, "offset_scale"))
         calibration = load_calibration(calibration_path)
         export_subaperture_tiled_png(
             raw_path.read_bytes(),
@@ -489,6 +494,7 @@ async def main() -> int:
             apply_color_correction=apply_ccm,
             per_view_normalize=per_view_normalize,
             apply_aspect_correction=apply_aspect,
+            offset_scale=offset_scale,
         )
         print(f"Wrote PNG: {output_path}")
         return 0
@@ -503,6 +509,7 @@ async def main() -> int:
         per_view_normalize = not bool(getattr(args, "no_per_view_normalize"))
         apply_ccm = not bool(getattr(args, "no_color_correction"))
         apply_aspect = not bool(getattr(args, "no_aspect_correction"))
+        offset_scale = float(getattr(args, "offset_scale"))
         calibration = load_calibration(calibration_path)
         camera = LytroDevice.find()
         if camera is None:
@@ -526,6 +533,7 @@ async def main() -> int:
                 apply_color_correction=apply_ccm,
                 per_view_normalize=per_view_normalize,
                 apply_aspect_correction=apply_aspect,
+                offset_scale=offset_scale,
             )
             print(f"Wrote PNG: {output_path}")
             return 0
