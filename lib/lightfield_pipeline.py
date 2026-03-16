@@ -78,7 +78,7 @@ def export_subaperture_tiled_png(
     vertical = calibration.array.grid.get_vertical_lines()
 
     out_h = len(horizontal)
-    out_w = len(vertical) // 2
+    col_index, out_w = _build_subgrid_columns(vertical)
     if out_h == 0 or out_w == 0:
         raise RuntimeError("Calibration grid is empty; cannot export subaperture views.")
 
@@ -96,7 +96,9 @@ def export_subaperture_tiled_png(
 
     for j, dy in enumerate(offsets_y):
         for i, dx in enumerate(offsets_x):
-            view = _sample_subaperture(tmp, horizontal, vertical, dx, dy, out_h, out_w)
+            view = _sample_subaperture(
+                tmp, horizontal, vertical, col_index, dx, dy, out_h, out_w
+            )
             y0 = j * out_h
             x0 = i * out_w
             tiled[y0 : y0 + out_h, x0 : x0 + out_w] = view
@@ -161,6 +163,7 @@ def _sample_subaperture(
     tmp: np.ndarray,
     horizontal,
     vertical,
+    col_index: list[int],
     dx: float,
     dy: float,
     out_h: int,
@@ -173,7 +176,7 @@ def _sample_subaperture(
                 src_x = int(round(vline.position + dx))
                 src_y = int(round(hline.position + dy))
                 out_x = h_idx
-                out_y = v_idx // 2
+                out_y = col_index[v_idx]
                 if (
                     0 <= src_x < tmp.shape[1]
                     and 0 <= src_y < tmp.shape[0]
@@ -182,6 +185,18 @@ def _sample_subaperture(
                 ):
                     view[out_x, out_y] = tmp[src_y, src_x]
     return view
+
+
+def _build_subgrid_columns(vertical) -> tuple[list[int], int]:
+    col_index: list[int] = []
+    counts = {}
+    for vline in vertical:
+        subgrid = vline.subgrid
+        idx = counts.get(subgrid, 0)
+        col_index.append(idx)
+        counts[subgrid] = idx + 1
+    out_w = max(counts.values(), default=0)
+    return col_index, out_w
 
 
 def _tone_map_u16(rgb: np.ndarray) -> np.ndarray:

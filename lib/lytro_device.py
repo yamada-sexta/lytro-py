@@ -135,47 +135,54 @@ class LytroDevice(UsbMassStorage):
             return []
         line_len = int.from_bytes(data[4:8], "little", signed=False)
         entry_offset = int.from_bytes(data[8:12], "little", signed=False)
-        pos = entry_offset * 8 + 12
         if line_len <= 0:
             return []
 
-        entries: list[PictureEntry] = []
-        while pos + line_len <= len(data):
-            line = data[pos : pos + line_len]
-            dir_base = LytroDevice._decode_c_string(line[0:8])
-            file_base = LytroDevice._decode_c_string(line[8:16])
-            dir_id = int.from_bytes(line[16:20], "little", signed=False)
-            file_id = int.from_bytes(line[20:24], "little", signed=False)
-            sha1_hex = LytroDevice._parse_sha1_hex(line[53:93])
+        def parse_at(pos: int) -> list[PictureEntry]:
+            entries: list[PictureEntry] = []
+            while pos + line_len <= len(data):
+                line = data[pos : pos + line_len]
+                dir_base = LytroDevice._decode_c_string(line[0:8])
+                file_base = LytroDevice._decode_c_string(line[8:16])
+                dir_id = int.from_bytes(line[16:20], "little", signed=False)
+                file_id = int.from_bytes(line[20:24], "little", signed=False)
+                sha1_hex = LytroDevice._parse_sha1_hex(line[53:93])
 
-            captured_at = None
-            time_raw = LytroDevice._decode_c_string(line[96:120])
-            if time_raw:
-                for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ"):
-                    try:
-                        captured_at = datetime.strptime(time_raw, fmt).replace(
-                            tzinfo=timezone.utc
-                        )
-                        break
-                    except ValueError:
-                        continue
+                captured_at = None
+                time_raw = LytroDevice._decode_c_string(line[96:120])
+                if time_raw:
+                    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ"):
+                        try:
+                            captured_at = datetime.strptime(time_raw, fmt).replace(
+                                tzinfo=timezone.utc
+                            )
+                            break
+                        except ValueError:
+                            continue
 
-            path = LytroDevice._build_picture_path(dir_base, dir_id)
-            basename = LytroDevice._build_picture_basename(file_base, file_id)
-            entries.append(
-                PictureEntry(
-                    dir_base=dir_base,
-                    file_base=file_base,
-                    dir_id=dir_id,
-                    file_id=file_id,
-                    sha1_hex=sha1_hex,
-                    captured_at=captured_at,
-                    path=path,
-                    basename=basename,
+                path = LytroDevice._build_picture_path(dir_base, dir_id)
+                basename = LytroDevice._build_picture_basename(file_base, file_id)
+                entries.append(
+                    PictureEntry(
+                        dir_base=dir_base,
+                        file_base=file_base,
+                        dir_id=dir_id,
+                        file_id=file_id,
+                        sha1_hex=sha1_hex,
+                        captured_at=captured_at,
+                        path=path,
+                        basename=basename,
+                    )
                 )
-            )
-            pos += line_len
-        return entries
+                pos += line_len
+            return entries
+
+        # Some devices appear to store entry_offset in bytes instead of 8-byte units.
+        pos_a = entry_offset * 8 + 12
+        pos_b = entry_offset + 12
+        entries_a = parse_at(pos_a) if pos_a < len(data) else []
+        entries_b = parse_at(pos_b) if pos_b < len(data) else []
+        return entries_a if len(entries_a) >= len(entries_b) else entries_b
 
     async def get_picture_list_raw(self) -> bytes:
         await self.command(

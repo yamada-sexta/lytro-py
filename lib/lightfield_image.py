@@ -28,8 +28,23 @@ class LightfieldImage:
 
         horizontal = calibration.array.grid.get_horizontal_lines()
         vertical = calibration.array.grid.get_vertical_lines()
-        out_h = len(horizontal)
-        out_w = len(vertical) // 2
+        row_index: list[int] = []
+        row_counts = {}
+        for hline in horizontal:
+            subgrid = hline.subgrid
+            idx = row_counts.get(subgrid, 0)
+            row_index.append(idx)
+            row_counts[subgrid] = idx + 1
+        out_h = max(row_counts.values(), default=0)
+
+        col_index: list[int] = []
+        col_counts = {}
+        for vline in vertical:
+            subgrid = vline.subgrid
+            idx = col_counts.get(subgrid, 0)
+            col_index.append(idx)
+            col_counts[subgrid] = idx + 1
+        out_w = max(col_counts.values(), default=0)
         out = np.zeros((out_h, out_w, 3), dtype=np.uint16)
 
         for y, vline in enumerate(vertical):
@@ -40,7 +55,8 @@ class LightfieldImage:
                     if (
                         0 <= src_x < tmp.shape[1]
                         and 0 <= src_y < tmp.shape[0]
-                        and 0 <= y // 2 < out_w
+                        and 0 <= row_index[x] < out_h
+                        and 0 <= col_index[y] < out_w
                     ):
-                        out[x, y // 2] = tmp[src_y, src_x]
+                        out[row_index[x], col_index[y]] = tmp[src_y, src_x]
         return cls(out)
