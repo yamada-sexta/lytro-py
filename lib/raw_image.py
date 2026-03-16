@@ -22,9 +22,12 @@ class RawImage:
         buf = np.frombuffer(raw_bytes[:expected_bytes], dtype=np.uint8).reshape(
             (-1, 3)
         )
-        p0 = (buf[:, 0].astype(np.uint16) << 8) | (buf[:, 1] & 0xF0).astype(np.uint16)
-        p1 = ((buf[:, 1] & 0x0F).astype(np.uint16) << 12) | (
-            buf[:, 2].astype(np.uint16) << 4
+        # 12-bit packed: [b0 b1 b2] -> p0 = b0<<4 | (b1>>4), p1 = (b1&0x0F)<<8 | b2
+        p0 = (buf[:, 0].astype(np.uint16) << 4) | (buf[:, 1] >> 4).astype(
+            np.uint16
+        )
+        p1 = ((buf[:, 1] & 0x0F).astype(np.uint16) << 8) | buf[:, 2].astype(
+            np.uint16
         )
         pixels = np.empty(total_pixels, dtype=np.uint16)
         pixels[0::2] = p0
