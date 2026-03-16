@@ -22,7 +22,9 @@ def build_lightfield(
 ) -> LightfieldImage:
     meta = Metadata.from_bytes(metadata_bytes)
     info = meta.image_info()
-    raw = RawImage.from_bytes(raw_bytes, info.width, info.height)
+    raw = RawImage.from_bytes(
+        raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
+    )
     return LightfieldImage.from_raw(raw, calibration)
 
 
@@ -32,8 +34,14 @@ def export_flat_png(
     calibration: CalibrationData,
     output_path: str | Path,
 ) -> Path:
-    lf = build_lightfield(raw_bytes, metadata_bytes, calibration)
-    rgb_u16 = _tone_map_u16(lf.data)
+    meta = Metadata.from_bytes(metadata_bytes)
+    info = meta.image_info()
+    raw = RawImage.from_bytes(
+        raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
+    )
+    lf = LightfieldImage.from_raw(raw, calibration)
+    rgb_u16 = _apply_white_balance(lf.data, _extract_white_balance(meta))
+    rgb_u16 = _tone_map_u16(rgb_u16)
     bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
     if not cv2.imwrite(str(out_path), bgr):
@@ -48,8 +56,10 @@ def export_raw_png(
 ) -> Path:
     meta = Metadata.from_bytes(metadata_bytes)
     info = meta.image_info()
-    raw = RawImage.from_bytes(raw_bytes, info.width, info.height)
-    rgb_u16 = _normalize_raw_rgb(raw.data, info)
+    raw = RawImage.from_bytes(
+        raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
+    )
+    rgb_u16 = _normalize_raw_rgb(raw.data, info, _extract_white_balance(meta))
     rgb_u16 = _tone_map_u16(rgb_u16)
     bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
@@ -70,14 +80,16 @@ def export_subaperture_tiled_png(
 
     meta = Metadata.from_bytes(metadata_bytes)
     info = meta.image_info()
-    raw = RawImage.from_bytes(raw_bytes, info.width, info.height)
-    rgb_u16 = _normalize_raw_rgb(raw.data, info)
+    raw = RawImage.from_bytes(
+        raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
+    )
+    rgb_u16 = _normalize_raw_rgb(raw.data, info, _extract_white_balance(meta))
 
     tmp = _apply_calibration(rgb_u16, calibration)
     horizontal = calibration.array.grid.get_horizontal_lines()
     vertical = calibration.array.grid.get_vertical_lines()
 
-    out_h = len(horizontal)
+    row_index, out_h = _build_subgrid_rows(horizontal)
     col_index, out_w = _build_subgrid_columns(vertical)
     if out_h == 0 or out_w == 0:
         raise RuntimeError("Calibration grid is empty; cannot export subaperture views.")
@@ -97,7 +109,15 @@ def export_subaperture_tiled_png(
     for j, dy in enumerate(offsets_y):
         for i, dx in enumerate(offsets_x):
             view = _sample_subaperture(
-                tmp, horizontal, vertical, col_index, dx, dy, out_h, out_w
+                tmp,
+                horizontal,
+                vertical,
+                row_index,
+                col_index,
+                dx,
+                dy,
+                out_h,
+                out_w,
             )
             y0 = j * out_h
             x0 = i * out_w
@@ -111,7 +131,7 @@ def export_subaperture_tiled_png(
     return out_path
 
 
-def _normalize_raw_rgb(rgb: np.ndarray, info) -> np.ndarray:
+def _normalize_raw_rgb(rgb: np.ndarray, info, wb_gains: np.ndarray | None) -> np.ndarray:
     rgb_u16 = rgb.astype(np.uint16)
     if info.raw.right_shift > 0:
         rgb_u16 = np.right_shift(rgb_u16, info.raw.right_shift).astype(np.uint16)
@@ -133,7 +153,10 @@ def _normalize_raw_rgb(rgb: np.ndarray, info) -> np.ndarray:
     rgb_f = rgb_u16.astype(np.float32)
     rgb_f = (rgb_f - offset) / scale
     rgb_f = np.clip(rgb_f, 0.0, 1.0)
-    return (rgb_f * 65535.0).astype(np.uint16)
+    rgb_u16 = (rgb_f * 65535.0).astype(np.uint16)
+    if wb_gains is not None:
+        rgb_u16 = _apply_white_balance(rgb_u16, wb_gains)
+    return rgb_u16
 
 
 def _apply_calibration(rgb: np.ndarray, calibration: CalibrationData) -> np.ndarray:
@@ -163,6 +186,7 @@ def _sample_subaperture(
     tmp: np.ndarray,
     horizontal,
     vertical,
+    row_index: list[int],
     col_index: list[int],
     dx: float,
     dy: float,
@@ -175,7 +199,7 @@ def _sample_subaperture(
             if hline.subgrid == vline.subgrid:
                 src_x = int(round(vline.position + dx))
                 src_y = int(round(hline.position + dy))
-                out_x = h_idx
+                out_x = row_index[h_idx]
                 out_y = col_index[v_idx]
                 if (
                     0 <= src_x < tmp.shape[1]
@@ -185,6 +209,18 @@ def _sample_subaperture(
                 ):
                     view[out_x, out_y] = tmp[src_y, src_x]
     return view
+
+
+def _build_subgrid_rows(horizontal) -> tuple[list[int], int]:
+    row_index: list[int] = []
+    counts = {}
+    for hline in horizontal:
+        subgrid = hline.subgrid
+        idx = counts.get(subgrid, 0)
+        row_index.append(idx)
+        counts[subgrid] = idx + 1
+    out_h = max(counts.values(), default=0)
+    return row_index, out_h
 
 
 def _build_subgrid_columns(vertical) -> tuple[list[int], int]:
@@ -197,6 +233,34 @@ def _build_subgrid_columns(vertical) -> tuple[list[int], int]:
         counts[subgrid] = idx + 1
     out_w = max(counts.values(), default=0)
     return col_index, out_w
+
+
+def _extract_white_balance(meta: Metadata) -> np.ndarray | None:
+    try:
+        color = meta.raw_json["master"]["picture"]["frameArray"][0]["frame"]["metadata"][
+            "image"
+        ]["color"]
+        wb = color.get("whiteBalanceGain", {})
+        r = float(wb.get("r", 1.0))
+        gr = float(wb.get("gr", 1.0))
+        gb = float(wb.get("gb", 1.0))
+        b = float(wb.get("b", 1.0))
+        g = 0.5 * (gr + gb)
+        gains = np.array([r, g, b], dtype=np.float32)
+        if np.allclose(gains, 1.0):
+            return None
+        return gains
+    except Exception:
+        return None
+
+
+def _apply_white_balance(rgb: np.ndarray, gains: np.ndarray | None) -> np.ndarray:
+    if gains is None:
+        return rgb
+    rgb_f = rgb.astype(np.float32)
+    rgb_f *= gains.reshape((1, 1, 3))
+    rgb_f = np.clip(rgb_f, 0.0, 65535.0)
+    return rgb_f.astype(np.uint16)
 
 
 def _tone_map_u16(rgb: np.ndarray) -> np.ndarray:

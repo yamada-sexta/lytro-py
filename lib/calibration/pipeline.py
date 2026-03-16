@@ -28,7 +28,9 @@ def _process_file_for_calibration(
     metadata = Metadata.from_bytes(meta_path.read_bytes())
     raw_bytes = raw_path.read_bytes()
     info = metadata.image_info()
-    raw_img = RawImage.from_bytes(raw_bytes, info.width, info.height)
+    raw_img = RawImage.from_bytes(
+        raw_bytes, info.width, info.height, info.raw.mosaic_tile, info.raw.mosaic_upper_left
+    )
     preprocessor = FFTPreprocessor() if use_fft_preprocessor else Preprocessor()
     detector = LensDetector(preprocessor)
     point_grid = detector.detect(raw_img.data)
