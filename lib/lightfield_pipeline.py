@@ -33,7 +33,8 @@ def export_flat_png(
     output_path: str | Path,
 ) -> Path:
     lf = build_lightfield(raw_bytes, metadata_bytes, calibration)
-    bgr = cv2.cvtColor(lf.data, cv2.COLOR_RGB2BGR)
+    rgb_u16 = _tone_map_u16(lf.data)
+    bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
     if not cv2.imwrite(str(out_path), bgr):
         raise RuntimeError(f"Failed to write image to {out_path}")
@@ -49,6 +50,7 @@ def export_raw_png(
     info = meta.image_info()
     raw = RawImage.from_bytes(raw_bytes, info.width, info.height)
     rgb_u16 = _normalize_raw_rgb(raw.data, info)
+    rgb_u16 = _tone_map_u16(rgb_u16)
     bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
     if not cv2.imwrite(str(out_path), bgr):
@@ -99,6 +101,7 @@ def export_subaperture_tiled_png(
             x0 = i * out_w
             tiled[y0 : y0 + out_h, x0 : x0 + out_w] = view
 
+    tiled = _tone_map_u16(tiled)
     bgr = cv2.cvtColor(tiled, cv2.COLOR_RGB2BGR)
     out_path = Path(output_path)
     if not cv2.imwrite(str(out_path), bgr):
@@ -179,6 +182,25 @@ def _sample_subaperture(
                 ):
                     view[out_x, out_y] = tmp[src_y, src_x]
     return view
+
+
+def _tone_map_u16(rgb: np.ndarray) -> np.ndarray:
+    if rgb.size == 0:
+        return rgb
+    # Use a luminance-based percentile stretch for a gentle normalization.
+    rgb_f = rgb.astype(np.float32)
+    lum = 0.2126 * rgb_f[..., 0] + 0.7152 * rgb_f[..., 1] + 0.0722 * rgb_f[..., 2]
+    sample = lum[::4, ::4].reshape(-1)
+    if sample.size == 0:
+        sample = lum.reshape(-1)
+    lo = float(np.percentile(sample, 1.0))
+    hi = float(np.percentile(sample, 99.5))
+    if hi <= lo + 1.0:
+        return rgb
+    scale = 1.0 / (hi - lo)
+    rgb_f = (rgb_f - lo) * scale
+    rgb_f = np.clip(rgb_f, 0.0, 1.0)
+    return (rgb_f * 65535.0).astype(np.uint16)
 
 
 def process_directory(
