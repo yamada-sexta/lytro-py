@@ -12,6 +12,7 @@ from lib.captured_picture import CapturedPicture
 from lib.lightfield_pipeline import (
     export_flat_png,
     export_raw_png,
+    export_subaperture_tiled_png,
     load_calibration,
     process_directory,
 )
@@ -68,7 +69,7 @@ class ProcessDeviceArgs(Tap):
 
 
 class ExportRawPngDeviceArgs(Tap):
-    device_raw_path: str  # Device RAW path, e.g. I:\\DCIM\\101PHOTO\\IMG_0003.RAW
+    device_raw_path: str  # Device RAW path or basename (e.g. IMG_0003)
     output_path: Path  # Local PNG output path
     metadata_path: str | None = None  # Optional device TXT path
 
@@ -76,6 +77,46 @@ class ExportRawPngDeviceArgs(Tap):
         self.add_argument("device_raw_path")
         self.add_argument("output_path", type=Path)
         self.add_argument("--metadata-path", dest="metadata_path")
+
+
+class ExportSubapertureArgs(Tap):
+    raw_path: Path  # Local RAW file path
+    metadata_path: Path  # Local TXT metadata path
+    output_path: Path  # Local PNG output path
+    calibration_path: Path = Path("calibration.json")  # Calibration file
+    grid: int = 9  # Odd grid size for subaperture views
+
+    def configure(self) -> None:
+        self.add_argument("raw_path", type=Path)
+        self.add_argument("metadata_path", type=Path)
+        self.add_argument("output_path", type=Path)
+        self.add_argument(
+            "--calibration-path",
+            dest="calibration_path",
+            default=Path("calibration.json"),
+            type=Path,
+        )
+        self.add_argument("--grid", type=int, default=9)
+
+
+class ExportSubapertureDeviceArgs(Tap):
+    device_raw_path: str  # Device RAW path or basename (e.g. IMG_0003)
+    output_path: Path  # Local PNG output path
+    calibration_path: Path = Path("calibration.json")  # Calibration file
+    metadata_path: str | None = None  # Optional device TXT path
+    grid: int = 9  # Odd grid size for subaperture views
+
+    def configure(self) -> None:
+        self.add_argument("device_raw_path")
+        self.add_argument("output_path", type=Path)
+        self.add_argument(
+            "--calibration-path",
+            dest="calibration_path",
+            default=Path("calibration.json"),
+            type=Path,
+        )
+        self.add_argument("--metadata-path", dest="metadata_path")
+        self.add_argument("--grid", type=int, default=9)
 
 
 class Args(Tap):
@@ -94,11 +135,40 @@ class Args(Tap):
             ExportRawPngDeviceArgs,
             help="export a single RAW from device to PNG",
         )
+        self.add_subparser(
+            "export-subaperture",
+            ExportSubapertureArgs,
+            help="export tiled subaperture PNG from local RAW/TXT",
+        )
+        self.add_subparser(
+            "export-subaperture-device",
+            ExportSubapertureDeviceArgs,
+            help="export tiled subaperture PNG from device RAW",
+        )
 
 
 async def _list_device(camera: LytroDevice) -> list[PictureEntry]:
     await camera.wait_ready()
     return await camera.get_picture_list()
+
+
+async def _resolve_device_paths(
+    camera: LytroDevice,
+    device_raw_path: str,
+    metadata_path: str | None,
+) -> tuple[str, str]:
+    if metadata_path is not None:
+        return device_raw_path, metadata_path
+    if device_raw_path.upper().endswith(".RAW"):
+        return device_raw_path, device_raw_path[:-4] + ".TXT"
+    candidates = await _list_device(camera)
+    for pic in candidates:
+        if pic.basename == device_raw_path or pic.basename == device_raw_path.upper():
+            return pic.raw_path, pic.metadata_path
+    raise ValueError(
+        f"Could not find RAW on device for basename: {device_raw_path}. "
+        "Use a full device path or provide --metadata-path."
+    )
 
 
 def _get_command_name(args: Any) -> str | None:
@@ -119,6 +189,10 @@ def _get_command_name(args: Any) -> str | None:
         return "process-device"
     if isinstance(args, ExportRawPngDeviceArgs):
         return "export-raw-png-device"
+    if isinstance(args, ExportSubapertureArgs):
+        return "export-subaperture"
+    if isinstance(args, ExportSubapertureDeviceArgs):
+        return "export-subaperture-device"
     return None
 
 
@@ -328,13 +402,6 @@ async def main() -> int:
         device_raw_path = str(getattr(args, "device_raw_path"))
         output_path = Path(getattr(args, "output_path"))
         metadata_path = getattr(args, "metadata_path")
-        if metadata_path is None:
-            if device_raw_path.upper().endswith(".RAW"):
-                metadata_path = device_raw_path[:-4] + ".TXT"
-            else:
-                raise ValueError(
-                    "device_raw_path must end with .RAW when --metadata-path is not provided"
-                )
         camera = LytroDevice.find()
         if camera is None:
             print("Lytro camera not found.")
@@ -342,9 +409,60 @@ async def main() -> int:
         try:
             print("Camera found. Downloading RAW...")
             await camera.wait_ready()
-            raw_bytes = await camera.get_file(device_raw_path)
-            metadata_bytes = await camera.get_file(metadata_path)
+            raw_path, meta_path = await _resolve_device_paths(
+                camera, device_raw_path, metadata_path
+            )
+            raw_bytes = await camera.get_file(raw_path)
+            metadata_bytes = await camera.get_file(meta_path)
             export_raw_png(raw_bytes, metadata_bytes, output_path)
+            print(f"Wrote PNG: {output_path}")
+            return 0
+        finally:
+            camera.close()
+
+    if command == "export-subaperture":
+        raw_path = Path(getattr(args, "raw_path"))
+        metadata_path = Path(getattr(args, "metadata_path"))
+        output_path = Path(getattr(args, "output_path"))
+        calibration_path = Path(getattr(args, "calibration_path"))
+        grid = int(getattr(args, "grid"))
+        calibration = load_calibration(calibration_path)
+        export_subaperture_tiled_png(
+            raw_path.read_bytes(),
+            metadata_path.read_bytes(),
+            calibration,
+            output_path,
+            grid_size=grid,
+        )
+        print(f"Wrote PNG: {output_path}")
+        return 0
+
+    if command == "export-subaperture-device":
+        device_raw_path = str(getattr(args, "device_raw_path"))
+        output_path = Path(getattr(args, "output_path"))
+        calibration_path = Path(getattr(args, "calibration_path"))
+        metadata_path = getattr(args, "metadata_path")
+        grid = int(getattr(args, "grid"))
+        calibration = load_calibration(calibration_path)
+        camera = LytroDevice.find()
+        if camera is None:
+            print("Lytro camera not found.")
+            return 1
+        try:
+            print("Camera found. Downloading RAW...")
+            await camera.wait_ready()
+            raw_path, meta_path = await _resolve_device_paths(
+                camera, device_raw_path, metadata_path
+            )
+            raw_bytes = await camera.get_file(raw_path)
+            metadata_bytes = await camera.get_file(meta_path)
+            export_subaperture_tiled_png(
+                raw_bytes,
+                metadata_bytes,
+                calibration,
+                output_path,
+                grid_size=grid,
+            )
             print(f"Wrote PNG: {output_path}")
             return 0
         finally:

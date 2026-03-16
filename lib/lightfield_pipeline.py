@@ -48,10 +48,68 @@ def export_raw_png(
     meta = Metadata.from_bytes(metadata_bytes)
     info = meta.image_info()
     raw = RawImage.from_bytes(raw_bytes, info.width, info.height)
-    rgb = raw.data.astype(np.uint16)
+    rgb_u16 = _normalize_raw_rgb(raw.data, info)
+    bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
+    out_path = Path(output_path)
+    if not cv2.imwrite(str(out_path), bgr):
+        raise RuntimeError(f"Failed to write image to {out_path}")
+    return out_path
 
+
+def export_subaperture_tiled_png(
+    raw_bytes: bytes,
+    metadata_bytes: bytes,
+    calibration: CalibrationData,
+    output_path: str | Path,
+    grid_size: int = 9,
+) -> Path:
+    if grid_size < 1 or grid_size % 2 == 0:
+        raise ValueError("grid_size must be a positive odd integer")
+
+    meta = Metadata.from_bytes(metadata_bytes)
+    info = meta.image_info()
+    raw = RawImage.from_bytes(raw_bytes, info.width, info.height)
+    rgb_u16 = _normalize_raw_rgb(raw.data, info)
+
+    tmp = _apply_calibration(rgb_u16, calibration)
+    horizontal = calibration.array.grid.get_horizontal_lines()
+    vertical = calibration.array.grid.get_vertical_lines()
+
+    out_h = len(horizontal)
+    out_w = len(vertical) // 2
+    if out_h == 0 or out_w == 0:
+        raise RuntimeError("Calibration grid is empty; cannot export subaperture views.")
+
+    pitch_y = _mean_subgrid_spacing(horizontal)
+    pitch_x = _mean_subgrid_spacing(vertical)
+    max_dx = 0.45 * pitch_x
+    max_dy = 0.45 * pitch_y
+
+    offsets_x = np.linspace(-max_dx, max_dx, grid_size)
+    offsets_y = np.linspace(-max_dy, max_dy, grid_size)
+
+    tile_h = out_h * grid_size
+    tile_w = out_w * grid_size
+    tiled = np.zeros((tile_h, tile_w, 3), dtype=np.uint16)
+
+    for j, dy in enumerate(offsets_y):
+        for i, dx in enumerate(offsets_x):
+            view = _sample_subaperture(tmp, horizontal, vertical, dx, dy, out_h, out_w)
+            y0 = j * out_h
+            x0 = i * out_w
+            tiled[y0 : y0 + out_h, x0 : x0 + out_w] = view
+
+    bgr = cv2.cvtColor(tiled, cv2.COLOR_RGB2BGR)
+    out_path = Path(output_path)
+    if not cv2.imwrite(str(out_path), bgr):
+        raise RuntimeError(f"Failed to write image to {out_path}")
+    return out_path
+
+
+def _normalize_raw_rgb(rgb: np.ndarray, info) -> np.ndarray:
+    rgb_u16 = rgb.astype(np.uint16)
     if info.raw.right_shift > 0:
-        rgb = np.right_shift(rgb, info.raw.right_shift).astype(np.uint16)
+        rgb_u16 = np.right_shift(rgb_u16, info.raw.right_shift).astype(np.uint16)
 
     black_r = info.raw.black["r"]
     black_g = (info.raw.black["gr"] + info.raw.black["gb"]) / 2.0
@@ -67,16 +125,60 @@ def export_raw_png(
     offset = np.array([black_r, black_g, black_b], dtype=np.float32)
     scale[scale == 0] = 1.0
 
-    rgb_f = rgb.astype(np.float32)
+    rgb_f = rgb_u16.astype(np.float32)
     rgb_f = (rgb_f - offset) / scale
     rgb_f = np.clip(rgb_f, 0.0, 1.0)
-    rgb_u16 = (rgb_f * 65535.0).astype(np.uint16)
+    return (rgb_f * 65535.0).astype(np.uint16)
 
-    bgr = cv2.cvtColor(rgb_u16, cv2.COLOR_RGB2BGR)
-    out_path = Path(output_path)
-    if not cv2.imwrite(str(out_path), bgr):
-        raise RuntimeError(f"Failed to write image to {out_path}")
-    return out_path
+
+def _apply_calibration(rgb: np.ndarray, calibration: CalibrationData) -> np.ndarray:
+    angle_deg = calibration.array.rotation * 180.0 / np.pi
+    rotation = cv2.getRotationMatrix2D((0.0, 0.0), angle_deg, 1.0)
+    translation = np.eye(3, dtype=np.float64)
+    translation[0, 2] = calibration.array.translation[0]
+    translation[1, 2] = calibration.array.translation[1]
+    transform = rotation @ translation
+    return cv2.warpAffine(rgb, transform, (rgb.shape[1], rgb.shape[0]))
+
+
+def _mean_subgrid_spacing(lines) -> float:
+    last = {}
+    diffs = []
+    for line in lines:
+        subgrid = line.subgrid
+        if subgrid in last:
+            diffs.append(abs(line.position - last[subgrid]))
+        last[subgrid] = line.position
+    if not diffs:
+        return 1.0
+    return float(np.mean(diffs))
+
+
+def _sample_subaperture(
+    tmp: np.ndarray,
+    horizontal,
+    vertical,
+    dx: float,
+    dy: float,
+    out_h: int,
+    out_w: int,
+) -> np.ndarray:
+    view = np.zeros((out_h, out_w, 3), dtype=np.uint16)
+    for v_idx, vline in enumerate(vertical):
+        for h_idx, hline in enumerate(horizontal):
+            if hline.subgrid == vline.subgrid:
+                src_x = int(round(vline.position + dx))
+                src_y = int(round(hline.position + dy))
+                out_x = h_idx
+                out_y = v_idx // 2
+                if (
+                    0 <= src_x < tmp.shape[1]
+                    and 0 <= src_y < tmp.shape[0]
+                    and 0 <= out_x < out_h
+                    and 0 <= out_y < out_w
+                ):
+                    view[out_x, out_y] = tmp[src_y, src_x]
+    return view
 
 
 def process_directory(
