@@ -89,6 +89,8 @@ def export_subaperture_tiled_png(
     per_view_normalize: bool = True,
     apply_aspect_correction: bool = True,
     offset_scale: float = 0.18,
+    apply_row_color_balance: bool = False,
+    row_color_balance_strength: float = 0.5,
 ) -> Path:
     if grid_size < 1 or grid_size % 2 == 0:
         raise ValueError("grid_size must be a positive odd integer")
@@ -149,6 +151,8 @@ def export_subaperture_tiled_png(
     if not per_view_normalize:
         valid = np.any(tiled > 0, axis=2)
         tiled = _tone_map_u16(tiled, mask=valid)
+    if apply_row_color_balance:
+        tiled = _balance_row_color(tiled, strength=row_color_balance_strength)
     if apply_aspect_correction:
         pitch_y = _mean_subgrid_spacing(horizontal)
         pitch_x = _mean_subgrid_spacing(vertical)
@@ -162,6 +166,44 @@ def export_subaperture_tiled_png(
     if not cv2.imwrite(str(out_path), bgr):
         raise RuntimeError(f"Failed to write image to {out_path}")
     return out_path
+
+
+def _balance_row_color(rgb: np.ndarray, strength: float = 0.5) -> np.ndarray:
+    if rgb.size == 0:
+        return rgb
+    strength = float(np.clip(strength, 0.0, 1.0))
+    if strength <= 0.0:
+        return rgb
+    rgb_f = rgb.astype(np.float32)
+    lum = 0.2126 * rgb_f[..., 0] + 0.7152 * rgb_f[..., 1] + 0.0722 * rgb_f[..., 2]
+    valid = lum > 0
+    row_medians = np.zeros((rgb_f.shape[0], 3), dtype=np.float32)
+    row_good = np.zeros((rgb_f.shape[0],), dtype=bool)
+    for y in range(rgb_f.shape[0]):
+        mask = valid[y]
+        if np.any(mask):
+            row = rgb_f[y]
+            row_medians[y, 0] = float(np.median(row[mask, 0]))
+            row_medians[y, 1] = float(np.median(row[mask, 1]))
+            row_medians[y, 2] = float(np.median(row[mask, 2]))
+            row_good[y] = True
+    good = row_good
+    if not np.any(good):
+        return rgb
+    target = np.median(row_medians[good], axis=0)
+    if np.any(target <= 1.0):
+        return rgb
+    gains = np.ones_like(row_medians, dtype=np.float32)
+    gains[good] = target / np.maximum(row_medians[good], 1.0)
+    gains = np.clip(gains, 0.5, 2.0)
+    # Smooth gains to avoid banding between rows.
+    kernel = np.ones(7, dtype=np.float32) / 7.0
+    for c in range(3):
+        gains[:, c] = np.convolve(gains[:, c], kernel, mode="same")
+    gains = 1.0 + strength * (gains - 1.0)
+    rgb_f *= gains[:, None, :]
+    rgb_f = np.clip(rgb_f, 0.0, 65535.0)
+    return rgb_f.astype(np.uint16)
 
 
 def _normalize_raw_rgb(rgb: np.ndarray, info, wb_gains: np.ndarray | None) -> np.ndarray:

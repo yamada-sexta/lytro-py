@@ -132,6 +132,8 @@ class ExportSubapertureArgs(Tap):
     white_balance: bool = False  # Apply metadata white balance
     no_per_view_normalize: bool = False  # Disable per-view normalization
     no_aspect_correction: bool = False  # Disable aspect correction stretch
+    row_color_balance: bool = False  # Enable per-row color balance
+    row_color_balance_strength: float = 0.5  # Strength of row balance (0..1)
     offset_scale: float = 0.18  # Subaperture offset as fraction of microlens pitch
 
     def configure(self) -> None:
@@ -166,6 +168,13 @@ class ExportSubapertureArgs(Tap):
             dest="no_aspect_correction",
             default=False,
         )
+        self.add_argument(
+            "--row-color-balance",
+            action="store_true",
+            dest="row_color_balance",
+            default=False,
+        )
+        self.add_argument("--row-color-balance-strength", type=float, default=0.5)
         self.add_argument("--offset-scale", type=float, default=0.18)
 
 
@@ -178,6 +187,8 @@ class ExportSubapertureDeviceArgs(Tap):
     white_balance: bool = False  # Apply metadata white balance
     no_per_view_normalize: bool = False  # Disable per-view normalization
     no_aspect_correction: bool = False  # Disable aspect correction stretch
+    row_color_balance: bool = False  # Enable per-row color balance
+    row_color_balance_strength: float = 0.5  # Strength of row balance (0..1)
     offset_scale: float = 0.18  # Subaperture offset as fraction of microlens pitch
 
     def configure(self) -> None:
@@ -212,6 +223,13 @@ class ExportSubapertureDeviceArgs(Tap):
             dest="no_aspect_correction",
             default=False,
         )
+        self.add_argument(
+            "--row-color-balance",
+            action="store_true",
+            dest="row_color_balance",
+            default=False,
+        )
+        self.add_argument("--row-color-balance-strength", type=float, default=0.5)
         self.add_argument("--offset-scale", type=float, default=0.18)
 
 
@@ -550,6 +568,8 @@ async def main() -> int:
         per_view_normalize = not bool(getattr(args, "no_per_view_normalize"))
         apply_ccm = not bool(getattr(args, "no_color_correction"))
         apply_aspect = not bool(getattr(args, "no_aspect_correction"))
+        row_color_balance = bool(getattr(args, "row_color_balance"))
+        row_color_balance_strength = float(getattr(args, "row_color_balance_strength"))
         offset_scale = float(getattr(args, "offset_scale"))
         calibration = load_calibration(calibration_path)
         export_subaperture_tiled_png(
@@ -563,6 +583,8 @@ async def main() -> int:
             per_view_normalize=per_view_normalize,
             apply_aspect_correction=apply_aspect,
             offset_scale=offset_scale,
+            apply_row_color_balance=row_color_balance,
+            row_color_balance_strength=row_color_balance_strength,
         )
         print(f"Wrote PNG: {output_path}")
         return 0
@@ -577,6 +599,10 @@ async def main() -> int:
         per_view_normalize = not bool(getattr(args, "no_per_view_normalize"))
         apply_ccm = not bool(getattr(args, "no_color_correction"))
         apply_aspect = not bool(getattr(args, "no_aspect_correction"))
+        row_color_balance = bool(getattr(args, "row_color_balance"))
+        row_color_balance_strength = float(
+            getattr(args, "row_color_balance_strength")
+        )
         offset_scale = float(getattr(args, "offset_scale"))
         calibration = load_calibration(calibration_path)
         camera = LytroDevice.find()
@@ -602,6 +628,8 @@ async def main() -> int:
                 per_view_normalize=per_view_normalize,
                 apply_aspect_correction=apply_aspect,
                 offset_scale=offset_scale,
+                apply_row_color_balance=row_color_balance,
+                row_color_balance_strength=row_color_balance_strength,
             )
             print(f"Wrote PNG: {output_path}")
             return 0
