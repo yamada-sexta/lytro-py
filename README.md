@@ -22,10 +22,15 @@ This README is intentionally detailed because the file formats and light‑field
 3. `.128` (thumbnail): 128x128, 16‑bit little‑endian grayscale. The code uses the low 8 bits.
 4. `calibration.json`: Per‑camera calibration describing microlens grid geometry and lens intrinsics at multiple zoom/focus settings.
 
+**About `.LFP` vs `.RAW`**
+Some Lytro distributions use `.LFP` containers (e.g., `IMG_0000.lfp`) that bundle raw sensor data plus JSON metadata. This repo does **not** parse `.LFP` directly. Instead, it works with extracted `.RAW` (pixel data) and `.TXT` (JSON metadata) files. If your data is in `.LFP`, you’ll need to extract the raw+metadata components first.
+
 **RAW Format Details**
 1. Packed 12‑bit layout: every 3 bytes encode 2 pixels.
-2. CFA (color filter array) pattern is read from metadata (example: `r,gr:gb,b`).
-3. The demosaic step uses the CFA pattern to generate RGB output.
+2. The decoder assumes the common packed order: `[b0 b1 b2] -> p0 = b0<<4 | (b1>>4), p1 = (b1&0x0F)<<8 | b2`.
+3. CFA (color filter array) pattern is read from metadata (example: `r,gr:gb,b`).
+4. The demosaic step uses the CFA pattern to generate RGB output.
+5. Metadata includes an `endianness` field, but the current decoder does **not** branch on it; it assumes the packed order above.
 
 **Thumbnail (.128) Details**
 1. Exactly 128x128 16‑bit unsigned values (little‑endian).
