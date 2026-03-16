@@ -124,9 +124,16 @@ def export_subaperture_tiled_png(
     offsets_x = np.linspace(-max_dx, max_dx, grid_size)
     offsets_y = np.linspace(-max_dy, max_dy, grid_size)
 
+    out_path = Path(output_path)
+    write_tiled = out_path.suffix.lower() == ".png"
+
+    pad = max(2, len(str(grid_size - 1)))
+    views: list[np.ndarray] | None = [] if not write_tiled else None
+    masks: list[np.ndarray] | None = [] if not write_tiled else None
+
     tile_h = out_h_f * grid_size
     tile_w = out_w_f * grid_size
-    tiled = np.zeros((tile_h, tile_w, 3), dtype=np.uint16)
+    tiled = np.zeros((tile_h, tile_w, 3), dtype=np.uint16) if write_tiled else None
 
     for j, dy in enumerate(offsets_y):
         for i, dx in enumerate(offsets_x):
@@ -144,27 +151,90 @@ def export_subaperture_tiled_png(
             if per_view_normalize:
                 valid = np.any(view > 0, axis=2)
                 view = _tone_map_u16(view, mask=valid)
-            y0 = j * out_h_f
-            x0 = i * out_w_f
-            tiled[y0 : y0 + out_h_f, x0 : x0 + out_w_f] = view
+            if write_tiled:
+                y0 = j * out_h_f
+                x0 = i * out_w_f
+                tiled[y0 : y0 + out_h_f, x0 : x0 + out_w_f] = view
+            else:
+                views.append(view)
+                masks.append(np.any(view > 0, axis=2))
+
+    if write_tiled:
+        if not per_view_normalize:
+            valid = np.any(tiled > 0, axis=2)
+            tiled = _tone_map_u16(tiled, mask=valid)
+        if apply_row_color_balance:
+            tiled = _balance_row_color(tiled, strength=row_color_balance_strength)
+        if apply_aspect_correction:
+            pitch_y = _mean_subgrid_spacing(horizontal)
+            pitch_x = _mean_subgrid_spacing(vertical)
+            if pitch_x > 0 and pitch_y > 0:
+                aspect = pitch_x / pitch_y
+                if abs(aspect - 1.0) > 0.01:
+                    new_w = max(1, int(round(tiled.shape[1] * aspect)))
+                    tiled = cv2.resize(
+                        tiled, (new_w, tiled.shape[0]), interpolation=cv2.INTER_AREA
+                    )
+        bgr = cv2.cvtColor(tiled, cv2.COLOR_RGB2BGR)
+        if not cv2.imwrite(str(out_path), bgr):
+            raise RuntimeError(f"Failed to write image to {out_path}")
+        return out_path
+
+    out_path.mkdir(parents=True, exist_ok=True)
+    assert views is not None
+    assert masks is not None
 
     if not per_view_normalize:
-        valid = np.any(tiled > 0, axis=2)
-        tiled = _tone_map_u16(tiled, mask=valid)
-    if apply_row_color_balance:
-        tiled = _balance_row_color(tiled, strength=row_color_balance_strength)
-    if apply_aspect_correction:
-        pitch_y = _mean_subgrid_spacing(horizontal)
-        pitch_x = _mean_subgrid_spacing(vertical)
-        if pitch_x > 0 and pitch_y > 0:
-            aspect = pitch_x / pitch_y
-            if abs(aspect - 1.0) > 0.01:
-                new_w = max(1, int(round(tiled.shape[1] * aspect)))
-                tiled = cv2.resize(tiled, (new_w, tiled.shape[0]), interpolation=cv2.INTER_AREA)
-    bgr = cv2.cvtColor(tiled, cv2.COLOR_RGB2BGR)
-    out_path = Path(output_path)
-    if not cv2.imwrite(str(out_path), bgr):
-        raise RuntimeError(f"Failed to write image to {out_path}")
+        samples: list[np.ndarray] = []
+        for view, mask in zip(views, masks):
+            rgb_f = view.astype(np.float32)
+            lum = 0.2126 * rgb_f[..., 0] + 0.7152 * rgb_f[..., 1] + 0.0722 * rgb_f[..., 2]
+            if mask is not None:
+                sample = lum[mask]
+            else:
+                sample = lum[::4, ::4].reshape(-1)
+            if sample.size:
+                samples.append(sample)
+        if samples:
+            merged = np.concatenate(samples)
+            lo = float(np.percentile(merged, 1.0))
+            hi = float(np.percentile(merged, 99.5))
+        else:
+            lo = hi = 0.0
+    else:
+        lo = hi = 0.0
+
+    def _tone_map_u16_with_bounds(rgb: np.ndarray, lo: float, hi: float) -> np.ndarray:
+        if rgb.size == 0:
+            return rgb
+        if hi <= lo + 1.0:
+            return rgb
+        rgb_f = rgb.astype(np.float32)
+        scale = 1.0 / (hi - lo)
+        rgb_f = (rgb_f - lo) * scale
+        rgb_f = np.clip(rgb_f, 0.0, 1.0)
+        return (rgb_f * 65535.0).astype(np.uint16)
+
+    for idx, view in enumerate(views):
+        if not per_view_normalize:
+            view = _tone_map_u16_with_bounds(view, lo, hi)
+        if apply_row_color_balance:
+            view = _balance_row_color(view, strength=row_color_balance_strength)
+        if apply_aspect_correction:
+            pitch_y = _mean_subgrid_spacing(horizontal)
+            pitch_x = _mean_subgrid_spacing(vertical)
+            if pitch_x > 0 and pitch_y > 0:
+                aspect = pitch_x / pitch_y
+                if abs(aspect - 1.0) > 0.01:
+                    new_w = max(1, int(round(view.shape[1] * aspect)))
+                    view = cv2.resize(view, (new_w, view.shape[0]), interpolation=cv2.INTER_AREA)
+        bgr = cv2.cvtColor(view, cv2.COLOR_RGB2BGR)
+        j = idx // grid_size
+        i = idx % grid_size
+        filename = f"view_r{j:0{pad}d}_c{i:0{pad}d}.png"
+        view_path = out_path / filename
+        if not cv2.imwrite(str(view_path), bgr):
+            raise RuntimeError(f"Failed to write image to {view_path}")
     return out_path
 
 
