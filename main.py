@@ -67,6 +67,17 @@ class ProcessDeviceArgs(Tap):
         self.add_argument("--raw-png", action="store_true", dest="raw_png")
 
 
+class ExportRawPngDeviceArgs(Tap):
+    device_raw_path: str  # Device RAW path, e.g. I:\\DCIM\\101PHOTO\\IMG_0003.RAW
+    output_path: Path  # Local PNG output path
+    metadata_path: str | None = None  # Optional device TXT path
+
+    def configure(self) -> None:
+        self.add_argument("device_raw_path")
+        self.add_argument("output_path", type=Path)
+        self.add_argument("--metadata-path", dest="metadata_path")
+
+
 class Args(Tap):
     command: str | None = None
 
@@ -78,6 +89,11 @@ class Args(Tap):
         self.add_subparser("list-device", ListDeviceArgs, help="list RAWs on device")
         self.add_subparser("export-raws", ExportRawsArgs, help="export RAWs from device")
         self.add_subparser("process-device", ProcessDeviceArgs, help="process RAWs from device")
+        self.add_subparser(
+            "export-raw-png-device",
+            ExportRawPngDeviceArgs,
+            help="export a single RAW from device to PNG",
+        )
 
 
 async def _list_device(camera: LytroDevice) -> list[PictureEntry]:
@@ -101,6 +117,8 @@ def _get_command_name(args: Any) -> str | None:
         return "export-raws"
     if isinstance(args, ProcessDeviceArgs):
         return "process-device"
+    if isinstance(args, ExportRawPngDeviceArgs):
+        return "export-raw-png-device"
     return None
 
 
@@ -302,6 +320,32 @@ async def main() -> int:
                     raw_path = output_dir / f"{base}-raw.png"
                     export_raw_png(raw_bytes, metadata_bytes, raw_path)
             print(f"Generated {len(pictures)} images in {output_dir}")
+            return 0
+        finally:
+            camera.close()
+
+    if command == "export-raw-png-device":
+        device_raw_path = str(getattr(args, "device_raw_path"))
+        output_path = Path(getattr(args, "output_path"))
+        metadata_path = getattr(args, "metadata_path")
+        if metadata_path is None:
+            if device_raw_path.upper().endswith(".RAW"):
+                metadata_path = device_raw_path[:-4] + ".TXT"
+            else:
+                raise ValueError(
+                    "device_raw_path must end with .RAW when --metadata-path is not provided"
+                )
+        camera = LytroDevice.find()
+        if camera is None:
+            print("Lytro camera not found.")
+            return 1
+        try:
+            print("Camera found. Downloading RAW...")
+            await camera.wait_ready()
+            raw_bytes = await camera.get_file(device_raw_path)
+            metadata_bytes = await camera.get_file(metadata_path)
+            export_raw_png(raw_bytes, metadata_bytes, output_path)
+            print(f"Wrote PNG: {output_path}")
             return 0
         finally:
             camera.close()
